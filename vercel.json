@@ -1,0 +1,25 @@
+{
+  "version": 2,
+  "buildCommand": "pnpm run build",
+  "devCommand": "pnpm run dev",
+  "installCommand": "pnpm install",
+  "framework": "nextjs",
+  "regions": ["all"],
+  "env": {
+    "NEXT_PUBLIC_CONVEX_URL": "@convex-url",
+    "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY": "@clerk-publishable-key",
+    "CLERK_SECRET_KEY": "@clerk-secret-key",
+    "OPENAI_API_KEY": "@openai-api-key",
+    "GOOGLE_GENERATIVE_AI_API_KEY": "@google-ai-api-key"
+  },
+  "build": {
+    "env": {
+      "DEPLOY_TARGET": "vercel"
+    }
+  },
+  "functions": {
+    "src/app/api/**/*.ts": {
+      "runtime": "nodejs20.x"
+    }
+  }
+}

@@ -5,9 +5,19 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:static": "DEPLOY_TARGET=cloudflare next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "deploy": "pnpm build:static && wrangler pages deploy out --project-name=sassy-cv",
+    "deploy:staging": "pnpm build:static && wrangler pages deploy out --project-name=sassy-cv --env=staging",
+    "deploy:vercel": "DEPLOY_TARGET=vercel vercel --prod",
+    "deploy:vercel:staging": "DEPLOY_TARGET=vercel vercel",
+    "convex:dev": "convex dev",
+    "convex:deploy": "convex deploy",
+    "type-check": "tsc --noEmit",
+    "postinstall": "convex codegen"
   },
+  "packageManager": "pnpm@8.15.0",
   "keywords": [],
   "author": "",
   "license": "ISC",
@@ -30,5 +40,10 @@
     "tailwindcss": "^4.1.11",
     "typescript": "^5.9.2",
     "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@cloudflare/next-on-pages": "^1.13.5",
+    "vercel": "^39.2.0",
+    "wrangler": "^3.109.0"
   }
 }

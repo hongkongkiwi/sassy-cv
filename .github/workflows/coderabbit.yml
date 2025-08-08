@@ -1,0 +1,51 @@
+name: CodeRabbit AI Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  pull_request_review_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    name: CodeRabbit Review
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: CodeRabbit Review
+        uses: coderabbitai/coderabbit-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        with:
+          debug: false
+          max_files: 30
+          review_simple_changes: false
+          review_comment_lgtm: false
+          openai_light_model: gpt-3.5-turbo
+          openai_heavy_model: gpt-4
+          language: en-US
+          path_instructions: |
+            src/: Focus on code quality, performance, and Next.js best practices
+            components/: Review for React best practices, accessibility, and reusability
+            convex/: Check database queries, mutations, and serverless function patterns
+            types/: Validate TypeScript interfaces and type safety
+          review_guidelines: |
+            - Focus on security vulnerabilities and potential issues
+            - Check for React/Next.js performance anti-patterns
+            - Validate TypeScript usage and type safety
+            - Review accessibility considerations
+            - Ensure proper error handling
+            - Check for proper data validation
+            - Review for potential memory leaks or performance issues
+            - Validate proper use of React hooks and lifecycle methods
+            - Check for proper authentication and authorization patterns
+            - Review API route implementations for security

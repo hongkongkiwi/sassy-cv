@@ -1,0 +1,51 @@
+name: Deploy Convex Functions
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'convex/**'
+      - 'convex.json'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'convex/**'
+      - 'convex.json'
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploy Convex Backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Deploy Convex functions
+        run: npx convex deploy --cmd-url-env-var-name CONVEX_DEPLOYMENT_URL
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+
+      - name: Run Convex codegen
+        run: npx convex codegen
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+
+      - name: Type check
+        run: pnpm run lint

@@ -1,0 +1,14 @@
+name = "sassy-cv"
+compatibility_date = "2024-01-01"
+
+[env.production]
+name = "sassy-cv"
+
+[env.staging] 
+name = "sassy-cv-staging"
+
+[[env.production.pages_build_output_dir]]
+value = "out"
+
+[[env.staging.pages_build_output_dir]]
+value = "out"
