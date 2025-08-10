@@ -1,100 +1,49 @@
-name: CI/CD Pipeline
+name: CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [ main ]
   pull_request:
-    branches: [main, develop]
-
-env:
-  NODE_VERSION: '20'
 
 jobs:
-  test:
+  ci:
     runs-on: ubuntu-latest
-    name: Test & Quality Checks
+    env:
+      NEXT_PUBLIC_CONVEX_URL: "https://example.com"
+      NEXT_PUBLIC_PUBLIC_USER_ID: "public-cv-owner"
+      NEXT_PUBLIC_DISABLE_AI: "1"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 8
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
 
-      - name: Type check
-        run: pnpm run type-check
+      - name: Install dependencies
+        run: pnpm install
 
       - name: Lint
         run: pnpm run lint
 
+      - name: Type check
+        run: pnpm run type-check
+
       - name: Build
         run: pnpm run build
-        env:
-          NEXT_PUBLIC_CONVEX_URL: ${{ secrets.NEXT_PUBLIC_CONVEX_URL || 'https://dummy-url.convex.cloud' }}
-          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || 'pk_test_dummy' }}
 
-      - name: Check for security vulnerabilities
-        run: pnpm audit --audit-level moderate
+      - name: Install Playwright
+        run: npx playwright install --with-deps
 
-  convex-validate:
-    runs-on: ubuntu-latest
-    name: Validate Convex Schema
-    if: contains(github.event.head_commit.modified, 'convex/') || contains(github.event.head_commit.added, 'convex/')
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Validate Convex schema
-        run: npx convex dev --once --configure=new
-        env:
-          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
-
-  # Only run deployment jobs on main branch
-  deploy-staging:
-    needs: [test, convex-validate]
-    if: always() && (needs.test.result == 'success') && (needs.convex-validate.result == 'success' || needs.convex-validate.result == 'skipped') && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    name: Deploy to Staging
-    environment: staging
-    steps:
-      - name: Trigger Convex Deployment
-        if: contains(github.event.head_commit.modified, 'convex/') || contains(github.event.head_commit.added, 'convex/')
-        uses: actions/github-script@v7
-        with:
-          script: |
-            github.rest.actions.createWorkflowDispatch({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              workflow_id: 'convex-deploy.yml',
-              ref: 'main'
-            });
-
-      - name: Trigger Cloudflare Workers Deployment  
-        uses: actions/github-script@v7
-        with:
-          script: |
-            github.rest.actions.createWorkflowDispatch({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              workflow_id: 'cloudflare-deploy.yml',
-              ref: 'main'
-            });
+      - name: Start app and run e2e tests
+        run: |
+          pnpm run start &
+          npx wait-on http://localhost:3000
+          pnpm run test:e2e

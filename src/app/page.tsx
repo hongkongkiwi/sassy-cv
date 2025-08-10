@@ -1,8 +1,6 @@
 'use client';
 
 import React, { useEffect } from 'react';
-import { pdf } from '@react-pdf/renderer';
-import { saveAs } from 'file-saver';
 import { useQuery, useMutation } from 'convex/react';
 import { useAuth } from '@clerk/nextjs';
 import Link from 'next/link';
@@ -80,7 +78,7 @@ export default function Home() {
       company: exp.company,
       position: exp.position,
       startDate: exp.startDate,
-      endDate: exp.endDate || null,
+      endDate: exp.endDate || undefined,
       location: exp.location,
       description: exp.description,
       technologies: exp.technologies,
@@ -114,6 +112,8 @@ export default function Home() {
 
   const handleExportPDF = async () => {
     try {
+      const { pdf } = await import('@react-pdf/renderer');
+      const { saveAs } = await import('file-saver');
       const blob = await pdf(<PDFDocument data={currentCVData} />).toBlob();
       saveAs(blob, `${currentCVData.contact.name.replace(/\s+/g, '_')}_CV.pdf`);
       

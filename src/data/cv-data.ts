@@ -18,7 +18,7 @@ export const cvData: CVData = {
       company: "Tech Company",
       position: "Principal Software Engineer",
       startDate: "2020-01",
-      endDate: null,
+      endDate: undefined,
       location: "San Francisco, CA",
       description: [
         "Lead architecture and development of core platform serving 10M+ users",

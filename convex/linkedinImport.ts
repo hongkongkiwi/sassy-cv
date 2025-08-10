@@ -129,7 +129,7 @@ export const applyImportToCV = mutation({
     if (args.sections.contact && importData.profileData) {
       const existing = await ctx.db
         .query("contactInfo")
-        .filter((q) => q.eq(q.field("userId"), args.userId))
+        .withIndex("by_user", (q) => q.eq("userId", args.userId))
         .first();
 
       const { firstName, lastName, headline, summary, location } = importData.profileData;
@@ -160,7 +160,7 @@ export const applyImportToCV = mutation({
       // Get existing experiences to determine the next order
       const existingExperiences = await ctx.db
         .query("experiences")
-        .filter((q) => q.eq(q.field("userId"), args.userId))
+        .withIndex("by_user", (q) => q.eq("userId", args.userId))
         .collect();
       
       const maxOrder = existingExperiences.length > 0 
@@ -168,7 +168,7 @@ export const applyImportToCV = mutation({
         : -1;
 
       for (let i = 0; i < importData.experiences.length; i++) {
-        const exp = importData.experiences[i];
+        const exp = importData.experiences[i]!;
         const formatDate = (dateObj: any) => {
           if (!dateObj) return undefined;
           const month = dateObj.month ? String(dateObj.month).padStart(2, '0') : '01';
@@ -193,7 +193,7 @@ export const applyImportToCV = mutation({
     if (args.sections.education && importData.education) {
       const existingEducation = await ctx.db
         .query("education")
-        .filter((q) => q.eq(q.field("userId"), args.userId))
+        .withIndex("by_user", (q) => q.eq("userId", args.userId))
         .collect();
       
       const maxOrder = existingEducation.length > 0 
@@ -201,7 +201,7 @@ export const applyImportToCV = mutation({
         : -1;
 
       for (let i = 0; i < importData.education.length; i++) {
-        const edu = importData.education[i];
+        const edu = importData.education[i]!;
         const formatYear = (dateObj: any) => dateObj ? String(dateObj.year) : "";
 
         await ctx.db.insert("education", {
@@ -223,7 +223,7 @@ export const applyImportToCV = mutation({
     if (args.sections.skills && importData.skills && importData.skills.length > 0) {
       const existingSkills = await ctx.db
         .query("skills")
-        .filter((q) => q.eq(q.field("userId"), args.userId))
+        .withIndex("by_user", (q) => q.eq("userId", args.userId))
         .collect();
       
       const maxOrder = existingSkills.length > 0 

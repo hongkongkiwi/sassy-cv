@@ -5,19 +5,31 @@ import { ConvexProviderWithClerk } from "convex/react-clerk";
 import { useAuth } from "@clerk/nextjs";
 import { ConvexReactClient, ConvexProvider } from "convex/react";
 
-const convex = new ConvexReactClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
-
-const hasClerk = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
-
 export function ConvexClientProvider({ children }: { children: ReactNode }) {
-  const auth = useAuth();
-  if (hasClerk) {
+  const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
+  const hasClerk = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
+
+  if (!convexUrl) {
     return (
-      <ConvexProviderWithClerk client={convex} useAuth={() => auth}>
-        {children}
-      </ConvexProviderWithClerk>
+      <div className="p-6 text-sm text-gray-700">
+        Convex is not configured. Set `NEXT_PUBLIC_CONVEX_URL` in your `.env.local`.
+      </div>
     );
   }
-  // Fallback provider without Clerk (public pages only)
+
+  const convex = new ConvexReactClient(convexUrl);
+
+  if (hasClerk) {
+    return <ConvexWithClerk client={convex}>{children}</ConvexWithClerk>;
+  }
   return <ConvexProvider client={convex}>{children}</ConvexProvider>;
+}
+
+function ConvexWithClerk({ client, children }: { client: ConvexReactClient; children: ReactNode }) {
+  const auth = useAuth();
+  return (
+    <ConvexProviderWithClerk client={client} useAuth={() => auth}>
+      {children}
+    </ConvexProviderWithClerk>
+  );
 }

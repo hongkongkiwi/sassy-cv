@@ -6,11 +6,13 @@ interface ExperienceSectionProps {
 }
 
 const ExperienceItem: React.FC<{ experience: Experience }> = ({ experience }) => {
-  const formatDate = (date: string | null) => {
+  const formatDate = (date: string | null | undefined) => {
     if (!date) return 'Present';
-    const [year, month] = date.split('-');
+    const [year, rawMonth = '01'] = date.split('-');
+    const monthNum = parseInt(rawMonth, 10);
+    const monthIndex = isNaN(monthNum) ? 0 : Math.min(Math.max(monthNum - 1, 0), 11);
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return `${monthNames[parseInt(month) - 1]} ${year}`;
+    return `${monthNames[monthIndex]} ${year}`;
   };
 
   return (

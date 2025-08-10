@@ -13,6 +13,8 @@ value = "out"
 [[env.staging.pages_build_output_dir]]
 value = "out"
 
-[vars]
-OPENAI_API_KEY = "${OPENAI_API_KEY}"
-GOOGLE_GENERATIVE_AI_API_KEY = "${GOOGLE_GENERATIVE_AI_API_KEY}"
+# Secrets should be added via wrangler secret commands:
+# wrangler secret put OPENAI_API_KEY --env production
+# wrangler secret put GOOGLE_GENERATIVE_AI_API_KEY --env production
+# wrangler secret put OPENAI_API_KEY --env staging  
+# wrangler secret put GOOGLE_GENERATIVE_AI_API_KEY --env staging

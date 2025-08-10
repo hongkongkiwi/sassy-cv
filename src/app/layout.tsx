@@ -16,17 +16,25 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  return (
+  const hasClerk = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
+
+  const app = (
+    <html lang="en">
+      <body className="antialiased">
+        <ConvexClientProvider>
+          <ThemeProvider>
+            {children}
+          </ThemeProvider>
+        </ConvexClientProvider>
+      </body>
+    </html>
+  );
+
+  return hasClerk ? (
     <ClerkProvider publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}>
-      <html lang="en">
-        <body className="antialiased">
-          <ConvexClientProvider>
-            <ThemeProvider>
-              {children}
-            </ThemeProvider>
-          </ConvexClientProvider>
-        </body>
-      </html>
+      {app}
     </ClerkProvider>
-  )
+  ) : (
+    app
+  );
 }

@@ -16,7 +16,24 @@ export const trackEvent = mutation({
     metadata: v.optional(v.object({})),
   },
   handler: async (ctx, args) => {
-    // Allow public tracking for a specific owner userId; no auth enforced here by design
+    // Basic rate limiting by visitorId to mitigate abuse
+    if (args.visitorId) {
+      const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+      const recent = await ctx.db
+        .query("analytics")
+        .withIndex("by_user", (q) => q.eq("userId", args.userId))
+        .filter((q) =>
+          q.and(
+            q.eq(q.field("visitorId"), args.visitorId!),
+            q.gte(q.field("timestamp"), fiveMinutesAgo)
+          )
+        )
+        .take(50);
+      if (recent.length > 30) {
+        throw new Error("Rate limit exceeded");
+      }
+    }
+
     return await ctx.db.insert("analytics", {
       ...args,
       timestamp: Date.now(),
@@ -29,8 +46,12 @@ export const getAnalyticsOverview = query({
   args: { userId: v.string() },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity?.tokenIdentifier || identity.subject !== args.userId) {
-      throw new Error("Unauthorized");
+    // Verify both authentication and that the user is requesting their own data
+    if (!identity?.tokenIdentifier) {
+      throw new Error("Authentication required");
+    }
+    if (identity.subject !== args.userId) {
+      throw new Error("Access denied: You can only view your own analytics");
     }
     const events = await ctx.db
       .query("analytics")
@@ -121,8 +142,12 @@ export const getDetailedAnalytics = query({
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity?.tokenIdentifier || identity.subject !== args.userId) {
-      throw new Error("Unauthorized");
+    // Verify both authentication and that the user is requesting their own data
+    if (!identity?.tokenIdentifier) {
+      throw new Error("Authentication required");
+    }
+    if (identity.subject !== args.userId) {
+      throw new Error("Access denied: You can only view your own analytics");
     }
     const days = args.days || 30;
     const cutoff = Date.now() - (days * 24 * 60 * 60 * 1000);
@@ -154,8 +179,12 @@ export const getAnalyticsForRange = query({
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity?.tokenIdentifier || identity.subject !== args.userId) {
-      throw new Error("Unauthorized");
+    // Verify both authentication and that the user is requesting their own data
+    if (!identity?.tokenIdentifier) {
+      throw new Error("Authentication required");
+    }
+    if (identity.subject !== args.userId) {
+      throw new Error("Access denied: You can only view your own analytics");
     }
     const events = await ctx.db
       .query("analytics")

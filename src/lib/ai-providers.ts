@@ -1,9 +1,10 @@
 import { openai } from '@ai-sdk/openai';
 import { google } from '@ai-sdk/google';
+import { LanguageModelV2 } from '@ai-sdk/provider';
 
 export type AIProvider = 'openai' | 'google';
 
-export function getAIModel(provider: AIProvider) {
+export function getAIModel(provider: AIProvider): LanguageModelV2 {
   switch (provider) {
     case 'google':
       return google('gemini-1.5-flash');

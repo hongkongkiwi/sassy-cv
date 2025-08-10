@@ -14,10 +14,11 @@ export interface Experience {
   company: string;
   position: string;
   startDate: string;
-  endDate: string | null;
+  endDate?: string; // Made optional to align with schema
   location: string;
   description: string[];
   technologies?: string[];
+  order?: number; // Added for sorting
 }
 
 export interface Education {
@@ -29,6 +30,7 @@ export interface Education {
   endDate: string;
   location: string;
   description?: string;
+  order?: number; // Added for sorting
 }
 
 export interface Project {
@@ -38,11 +40,14 @@ export interface Project {
   technologies: string[];
   url?: string;
   github?: string;
+  order?: number; // Added for sorting
 }
 
 export interface Skill {
+  id?: string; // Optional ID for database operations
   category: string;
   items: string[];
+  order?: number; // Added for sorting
 }
 
 export interface CVData {

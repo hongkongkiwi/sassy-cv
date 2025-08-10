@@ -193,7 +193,7 @@ export default function AnalyticsPage() {
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">
                   Daily Views (Last 30 Days)
                 </h3>
-                <ActivityChart data={analytics.recentActivity} />
+                <ActivityChart data={analytics.recentActivity as Array<{ date: string; views: number }>} />
               </Card>
 
               {/* Device Breakdown */}

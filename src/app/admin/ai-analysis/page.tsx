@@ -54,7 +54,7 @@ export default function AIAnalysisPage() {
       company: exp.company,
       position: exp.position,
       startDate: exp.startDate,
-      endDate: exp.endDate || null,
+      endDate: exp.endDate || undefined,
       location: exp.location,
       description: exp.description,
       technologies: exp.technologies,
