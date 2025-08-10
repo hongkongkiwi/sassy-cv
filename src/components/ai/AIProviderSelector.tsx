@@ -25,13 +25,13 @@ export const AIProviderSelector: React.FC<AIProviderSelectorProps> = ({
         className="w-full border rounded-md px-3 py-2 bg-white"
       >
         {availableProviders.map((provider) => (
-          <option key={provider.value} value={provider.value}>
-            {provider.label}
+          <option key={provider.id} value={provider.id as AIProvider}>
+            {provider.name}
           </option>
         ))}
       </select>
       <p className="text-xs text-gray-500 mt-1">
-        {availableProviders.find(p => p.value === selectedProvider)?.description}
+        {availableProviders.find(p => p.id === selectedProvider)?.description}
       </p>
     </div>
   );

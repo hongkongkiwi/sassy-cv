@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { AIProviderSelector } from './AIProviderSelector';
+import { isAIAvailable } from '@/lib/deploy';
 import { AIProvider, getDefaultProvider } from '@/lib/ai-providers';
 
 interface AIRewriteModalProps {
@@ -27,6 +28,10 @@ export const AIRewriteModal: React.FC<AIRewriteModalProps> = ({
   const [rewrittenContent, setRewrittenContent] = useState('');
 
   const handleRewrite = async () => {
+    if (!isAIAvailable) {
+      alert('AI rewrite is disabled in this environment.');
+      return;
+    }
     setIsRewriting(true);
     try {
       const response = await fetch('/api/ai/rewrite-section', {
@@ -100,7 +105,7 @@ export const AIRewriteModal: React.FC<AIRewriteModalProps> = ({
                   <p className="text-sm whitespace-pre-wrap">{rewrittenContent}</p>
                 ) : (
                   <p className="text-gray-500 text-sm italic">
-                    Click "Rewrite with AI" to generate improved content
+                    Click &quot;Rewrite with AI&quot; to generate improved content
                   </p>
                 )}
               </div>
@@ -109,10 +114,12 @@ export const AIRewriteModal: React.FC<AIRewriteModalProps> = ({
 
           {/* AI Configuration */}
           <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-            <AIProviderSelector
-              selectedProvider={provider}
-              onProviderChange={setProvider}
-            />
+            {isAIAvailable && (
+              <AIProviderSelector
+                selectedProvider={provider}
+                onProviderChange={setProvider}
+              />
+            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -163,7 +170,7 @@ export const AIRewriteModal: React.FC<AIRewriteModalProps> = ({
           <div className="mt-6 flex justify-between">
             <button
               onClick={handleRewrite}
-              disabled={isRewriting}
+              disabled={!isAIAvailable || isRewriting}
               className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {isRewriting ? (

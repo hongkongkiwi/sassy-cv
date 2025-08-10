@@ -1,5 +1,3 @@
-/* prettier-ignore-start */
-
 /* eslint-disable */
 /**
  * Generated `api` utility.
@@ -12,7 +10,7 @@
 
 import type {
   ApiFromModules,
-  filteredFunctionReference,
+  FilterApi,
   FunctionReference,
 } from "convex/server";
 import type * as analytics from "../analytics.js";
@@ -24,7 +22,7 @@ import type * as themes from "../themes.js";
 /**
  * A utility for referencing Convex functions in your app's API.
  *
- * Usage for example:
+ * Usage:
  * ```js
  * const myFunctionReference = api.myModule.myFunction;
  * ```
@@ -36,6 +34,11 @@ declare const fullApi: ApiFromModules<{
   linkedinImport: typeof linkedinImport;
   themes: typeof themes;
 }>;
-export declare const api: typeof fullApi;
-
-/* prettier-ignore-end */
+export declare const api: FilterApi<
+  typeof fullApi,
+  FunctionReference<any, "public">
+>;
+export declare const internal: FilterApi<
+  typeof fullApi,
+  FunctionReference<any, "internal">
+>;

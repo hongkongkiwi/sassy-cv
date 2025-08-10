@@ -80,7 +80,7 @@ export default function LinkedInImportPage() {
             <div className="flex-1">
               <h3 className="text-lg font-semibold text-gray-900 mb-2">How to Import from LinkedIn</h3>
               <div className="text-sm text-gray-600 space-y-2">
-                <p>Since LinkedIn doesn't provide a public API for personal data, you'll need to manually export your data:</p>
+                <p>Since LinkedIn doesn&#39;t provide a public API for personal data, you&#39;ll need to manually export your data:</p>
                 <ol className="list-decimal list-inside space-y-1 ml-4">
                   <li>Go to your LinkedIn profile and copy the URL</li>
                   <li>Copy your headline, summary, and other profile information</li>

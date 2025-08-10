@@ -5,6 +5,10 @@ import { v } from "convex/values";
 export const getImportHistory = query({
   args: { userId: v.string() },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity?.tokenIdentifier || identity.subject !== args.userId) {
+      throw new Error("Unauthorized");
+    }
     return await ctx.db
       .query("linkedinImports")
       .withIndex("by_user", (q) => q.eq("userId", args.userId))
@@ -17,6 +21,10 @@ export const getImportHistory = query({
 export const getLatestImport = query({
   args: { userId: v.string() },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity?.tokenIdentifier || identity.subject !== args.userId) {
+      throw new Error("Unauthorized");
+    }
     const imports = await ctx.db
       .query("linkedinImports")
       .withIndex("by_user", (q) => q.eq("userId", args.userId))
@@ -71,6 +79,10 @@ export const storeImportData = mutation({
     status: v.string(),
   },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity?.tokenIdentifier || identity.subject !== args.userId) {
+      throw new Error("Unauthorized");
+    }
     return await ctx.db.insert("linkedinImports", {
       userId: args.userId,
       profileData: args.profileData,
@@ -96,6 +108,10 @@ export const applyImportToCV = mutation({
     }),
   },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity?.tokenIdentifier || identity.subject !== args.userId) {
+      throw new Error("Unauthorized");
+    }
     // Get the import data
     const importData = await ctx.db.get(args.importId);
     if (!importData || importData.userId !== args.userId) {
@@ -163,7 +179,7 @@ export const applyImportToCV = mutation({
           userId: args.userId,
           company: exp.companyName,
           position: exp.title,
-          startDate: formatDate(exp.startDate),
+          startDate: formatDate(exp.startDate) || "",
           endDate: exp.endDate ? formatDate(exp.endDate) : undefined,
           location: exp.location || "",
           description: exp.description ? [exp.description] : [""],

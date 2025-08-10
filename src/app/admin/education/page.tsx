@@ -29,10 +29,10 @@ const initialFormData: EducationFormData = {
 
 export default function EducationPage() {
   const { userId } = useAuth();
-  const [isEditing, setIsEditing] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState<Id<'education'> | null>(null);
   const [formData, setFormData] = useState<EducationFormData>(initialFormData);
 
-  const education = useQuery(api.cv.getEducation, userId ? { userId } : 'skip');
+  const education = useQuery(api.cv.getEducation, {});
   const addEducation = useMutation(api.cv.addEducation);
   const updateEducation = useMutation(api.cv.updateEducation);
   const deleteEducation = useMutation(api.cv.deleteEducation);
@@ -43,7 +43,6 @@ export default function EducationPage() {
 
     const educationData = {
       ...formData,
-      userId,
       field: formData.field || undefined,
       description: formData.description || undefined,
       order: education?.length || 0,
@@ -66,7 +65,7 @@ export default function EducationPage() {
     }
   };
 
-  const handleEdit = (edu: any) => {
+  const handleEdit = (edu: { _id: Id<'education'>; institution: string; degree: string; field?: string; startDate: string; endDate: string; location: string; description?: string }) => {
     setFormData({
       institution: edu.institution,
       degree: edu.degree,
@@ -76,7 +75,7 @@ export default function EducationPage() {
       location: edu.location,
       description: edu.description || '',
     });
-    setIsEditing(edu._id);
+    setIsEditing(edu._id as Id<'education'>);
   };
 
   const handleDelete = async (id: Id<'education'>) => {

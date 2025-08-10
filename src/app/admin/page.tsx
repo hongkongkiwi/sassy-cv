@@ -11,7 +11,7 @@ import Link from 'next/link';
 
 export default function AdminDashboard() {
   const { userId } = useAuth();
-  const cvData = useQuery(api.cv.getAllCVData, userId ? { userId } : 'skip');
+  const cvData = useQuery(api.cv.getAllCVData, {});
 
   if (!userId) {
     return (

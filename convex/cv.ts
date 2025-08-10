@@ -3,18 +3,19 @@ import { v } from "convex/values";
 
 // Contact Info queries and mutations
 export const getContactInfo = query({
-  args: { userId: v.string() },
+  args: {},
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity?.tokenIdentifier) return null;
     return await ctx.db
       .query("contactInfo")
-      .filter((q) => q.eq(q.field("userId"), args.userId))
+      .withIndex("by_user", (q) => q.eq("userId", identity.subject))
       .first();
   },
 });
 
 export const upsertContactInfo = mutation({
   args: {
-    userId: v.string(),
     name: v.string(),
     title: v.string(),
     email: v.string(),
@@ -26,9 +27,12 @@ export const upsertContactInfo = mutation({
     summary: v.string(),
   },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity?.tokenIdentifier) throw new Error("Unauthorized");
+    const userId = identity.subject;
     const existing = await ctx.db
       .query("contactInfo")
-      .filter((q) => q.eq(q.field("userId"), args.userId))
+      .withIndex("by_user", (q) => q.eq("userId", userId))
       .first();
 
     if (existing) {
@@ -44,18 +48,20 @@ export const upsertContactInfo = mutation({
         summary: args.summary,
       });
     } else {
-      return await ctx.db.insert("contactInfo", args);
+      return await ctx.db.insert("contactInfo", { ...args, userId });
     }
   },
 });
 
 // Experience queries and mutations
 export const getExperiences = query({
-  args: { userId: v.string() },
+  args: {},
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity?.tokenIdentifier) return [];
     return await ctx.db
       .query("experiences")
-      .filter((q) => q.eq(q.field("userId"), args.userId))
+      .withIndex("by_user", (q) => q.eq("userId", identity.subject))
       .order("desc")
       .collect();
   },
@@ -63,7 +69,6 @@ export const getExperiences = query({
 
 export const addExperience = mutation({
   args: {
-    userId: v.string(),
     company: v.string(),
     position: v.string(),
     startDate: v.string(),
@@ -74,7 +79,9 @@ export const addExperience = mutation({
     order: v.number(),
   },
   handler: async (ctx, args) => {
-    return await ctx.db.insert("experiences", args);
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity?.tokenIdentifier) throw new Error("Unauthorized");
+    return await ctx.db.insert("experiences", { ...args, userId: identity.subject });
   },
 });
 
@@ -92,6 +99,11 @@ export const updateExperience = mutation({
   },
   handler: async (ctx, args) => {
     const { id, ...updates } = args;
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity?.tokenIdentifier) throw new Error("Unauthorized");
+    // Optional: verify ownership before patching
+    const existing = await ctx.db.get(id);
+    if (!existing || existing.userId !== identity.subject) throw new Error("Forbidden");
     return await ctx.db.patch(id, updates);
   },
 });
@@ -99,17 +111,23 @@ export const updateExperience = mutation({
 export const deleteExperience = mutation({
   args: { id: v.id("experiences") },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity?.tokenIdentifier) throw new Error("Unauthorized");
+    const existing = await ctx.db.get(args.id);
+    if (!existing || existing.userId !== identity.subject) throw new Error("Forbidden");
     return await ctx.db.delete(args.id);
   },
 });
 
 // Skills queries and mutations
 export const getSkills = query({
-  args: { userId: v.string() },
+  args: {},
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity?.tokenIdentifier) return [];
     return await ctx.db
       .query("skills")
-      .filter((q) => q.eq(q.field("userId"), args.userId))
+      .withIndex("by_user", (q) => q.eq("userId", identity.subject))
       .order("asc")
       .collect();
   },
@@ -117,13 +135,14 @@ export const getSkills = query({
 
 export const addSkill = mutation({
   args: {
-    userId: v.string(),
     category: v.string(),
     items: v.array(v.string()),
     order: v.number(),
   },
   handler: async (ctx, args) => {
-    return await ctx.db.insert("skills", args);
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity?.tokenIdentifier) throw new Error("Unauthorized");
+    return await ctx.db.insert("skills", { ...args, userId: identity.subject });
   },
 });
 
@@ -136,6 +155,10 @@ export const updateSkill = mutation({
   },
   handler: async (ctx, args) => {
     const { id, ...updates } = args;
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity?.tokenIdentifier) throw new Error("Unauthorized");
+    const existing = await ctx.db.get(id);
+    if (!existing || existing.userId !== identity.subject) throw new Error("Forbidden");
     return await ctx.db.patch(id, updates);
   },
 });
@@ -143,17 +166,23 @@ export const updateSkill = mutation({
 export const deleteSkill = mutation({
   args: { id: v.id("skills") },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity?.tokenIdentifier) throw new Error("Unauthorized");
+    const existing = await ctx.db.get(args.id);
+    if (!existing || existing.userId !== identity.subject) throw new Error("Forbidden");
     return await ctx.db.delete(args.id);
   },
 });
 
 // Projects queries and mutations
 export const getProjects = query({
-  args: { userId: v.string() },
+  args: {},
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity?.tokenIdentifier) return [];
     return await ctx.db
       .query("projects")
-      .filter((q) => q.eq(q.field("userId"), args.userId))
+      .withIndex("by_user", (q) => q.eq("userId", identity.subject))
       .order("asc")
       .collect();
   },
@@ -161,7 +190,6 @@ export const getProjects = query({
 
 export const addProject = mutation({
   args: {
-    userId: v.string(),
     name: v.string(),
     description: v.string(),
     technologies: v.array(v.string()),
@@ -170,7 +198,9 @@ export const addProject = mutation({
     order: v.number(),
   },
   handler: async (ctx, args) => {
-    return await ctx.db.insert("projects", args);
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity?.tokenIdentifier) throw new Error("Unauthorized");
+    return await ctx.db.insert("projects", { ...args, userId: identity.subject });
   },
 });
 
@@ -186,6 +216,10 @@ export const updateProject = mutation({
   },
   handler: async (ctx, args) => {
     const { id, ...updates } = args;
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity?.tokenIdentifier) throw new Error("Unauthorized");
+    const existing = await ctx.db.get(id);
+    if (!existing || existing.userId !== identity.subject) throw new Error("Forbidden");
     return await ctx.db.patch(id, updates);
   },
 });
@@ -193,17 +227,23 @@ export const updateProject = mutation({
 export const deleteProject = mutation({
   args: { id: v.id("projects") },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity?.tokenIdentifier) throw new Error("Unauthorized");
+    const existing = await ctx.db.get(args.id);
+    if (!existing || existing.userId !== identity.subject) throw new Error("Forbidden");
     return await ctx.db.delete(args.id);
   },
 });
 
 // Education queries and mutations
 export const getEducation = query({
-  args: { userId: v.string() },
+  args: {},
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity?.tokenIdentifier) return [];
     return await ctx.db
       .query("education")
-      .filter((q) => q.eq(q.field("userId"), args.userId))
+      .withIndex("by_user", (q) => q.eq("userId", identity.subject))
       .order("desc")
       .collect();
   },
@@ -211,7 +251,6 @@ export const getEducation = query({
 
 export const addEducation = mutation({
   args: {
-    userId: v.string(),
     institution: v.string(),
     degree: v.string(),
     field: v.optional(v.string()),
@@ -222,7 +261,9 @@ export const addEducation = mutation({
     order: v.number(),
   },
   handler: async (ctx, args) => {
-    return await ctx.db.insert("education", args);
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity?.tokenIdentifier) throw new Error("Unauthorized");
+    return await ctx.db.insert("education", { ...args, userId: identity.subject });
   },
 });
 
@@ -240,6 +281,10 @@ export const updateEducation = mutation({
   },
   handler: async (ctx, args) => {
     const { id, ...updates } = args;
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity?.tokenIdentifier) throw new Error("Unauthorized");
+    const existing = await ctx.db.get(id);
+    if (!existing || existing.userId !== identity.subject) throw new Error("Forbidden");
     return await ctx.db.patch(id, updates);
   },
 });
@@ -247,20 +292,29 @@ export const updateEducation = mutation({
 export const deleteEducation = mutation({
   args: { id: v.id("education") },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity?.tokenIdentifier) throw new Error("Unauthorized");
+    const existing = await ctx.db.get(args.id);
+    if (!existing || existing.userId !== identity.subject) throw new Error("Forbidden");
     return await ctx.db.delete(args.id);
   },
 });
 
 // Get all CV data for a user
 export const getAllCVData = query({
-  args: { userId: v.string() },
+  args: {},
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity?.tokenIdentifier) {
+      return { contactInfo: null, experiences: [], skills: [], projects: [], education: [] };
+    }
+    const userId = identity.subject;
     const [contactInfo, experiences, skills, projects, education] = await Promise.all([
-      ctx.db.query("contactInfo").filter((q) => q.eq(q.field("userId"), args.userId)).first(),
-      ctx.db.query("experiences").filter((q) => q.eq(q.field("userId"), args.userId)).order("desc").collect(),
-      ctx.db.query("skills").filter((q) => q.eq(q.field("userId"), args.userId)).order("asc").collect(),
-      ctx.db.query("projects").filter((q) => q.eq(q.field("userId"), args.userId)).order("asc").collect(),
-      ctx.db.query("education").filter((q) => q.eq(q.field("userId"), args.userId)).order("desc").collect(),
+      ctx.db.query("contactInfo").withIndex("by_user", (q) => q.eq("userId", userId)).first(),
+      ctx.db.query("experiences").withIndex("by_user", (q) => q.eq("userId", userId)).order("desc").collect(),
+      ctx.db.query("skills").withIndex("by_user", (q) => q.eq("userId", userId)).order("asc").collect(),
+      ctx.db.query("projects").withIndex("by_user", (q) => q.eq("userId", userId)).order("asc").collect(),
+      ctx.db.query("education").withIndex("by_user", (q) => q.eq("userId", userId)).order("desc").collect(),
     ]);
 
     return {

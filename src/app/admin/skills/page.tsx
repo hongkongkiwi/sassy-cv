@@ -16,7 +16,7 @@ export default function SkillsPage() {
   const [skillInput, setSkillInput] = useState('');
   const [isEditing, setIsEditing] = useState<Id<'skills'> | null>(null);
 
-  const skills = useQuery(api.cv.getSkills, userId ? { userId } : 'skip');
+  const skills = useQuery(api.cv.getSkills, {});
   const addSkill = useMutation(api.cv.addSkill);
   const updateSkill = useMutation(api.cv.updateSkill);
   const deleteSkill = useMutation(api.cv.deleteSkill);
@@ -35,7 +35,6 @@ export default function SkillsPage() {
         });
       } else {
         await addSkill({
-          userId,
           category: formData.category,
           items: formData.items,
           order: skills?.length || 0,
@@ -66,7 +65,7 @@ export default function SkillsPage() {
     });
   };
 
-  const handleEdit = (skill: any) => {
+  const handleEdit = (skill: { _id: Id<'skills'>; category: string; items: string[] }) => {
     setFormData({
       category: skill.category,
       items: skill.items,

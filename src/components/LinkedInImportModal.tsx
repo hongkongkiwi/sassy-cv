@@ -432,7 +432,7 @@ export const LinkedInImportModal: React.FC<LinkedInImportModalProps> = ({
               onChange={(e) => handleSkillsChange(e.target.value)}
             />
             <div className="text-sm text-gray-600">
-              <p>Skills will be grouped under "LinkedIn Skills" in your CV.</p>
+              <p>Skills will be grouped under &quot;LinkedIn Skills&quot; in your CV.</p>
               <p>Preview: {linkedInData.skills.length} skills</p>
             </div>
           </div>
@@ -493,7 +493,7 @@ export const LinkedInImportModal: React.FC<LinkedInImportModalProps> = ({
               <div className="flex items-start gap-3">
                 <div className="text-yellow-500 text-xl">⚠️</div>
                 <div className="text-sm text-yellow-800">
-                  <strong>Important:</strong> This will add new entries to your CV. Existing data won't be overwritten, but you may need to organize and review the imported content.
+                  <strong>Important:</strong> This will add new entries to your CV. Existing data won&#39;t be overwritten, but you may need to organize and review the imported content.
                 </div>
               </div>
             </div>

@@ -13,7 +13,7 @@ export default defineSchema({
     website: v.optional(v.string()),
     summary: v.string(),
     userId: v.string(), // Clerk user ID
-  }),
+  }).index("by_user", ["userId"]),
 
   experiences: defineTable({
     company: v.string(),
@@ -25,7 +25,7 @@ export default defineSchema({
     technologies: v.optional(v.array(v.string())),
     order: v.number(),
     userId: v.string(), // Clerk user ID
-  }),
+  }).index("by_user", ["userId"]),
 
   education: defineTable({
     institution: v.string(),
@@ -37,7 +37,7 @@ export default defineSchema({
     description: v.optional(v.string()),
     order: v.number(),
     userId: v.string(), // Clerk user ID
-  }),
+  }).index("by_user", ["userId"]),
 
   projects: defineTable({
     name: v.string(),
@@ -47,14 +47,14 @@ export default defineSchema({
     github: v.optional(v.string()),
     order: v.number(),
     userId: v.string(), // Clerk user ID
-  }),
+  }).index("by_user", ["userId"]),
 
   skills: defineTable({
     category: v.string(),
     items: v.array(v.string()),
     order: v.number(),
     userId: v.string(), // Clerk user ID
-  }),
+  }).index("by_user", ["userId"]),
 
   analytics: defineTable({
     userId: v.string(), // CV owner's Clerk user ID

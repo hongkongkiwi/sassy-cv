@@ -29,7 +29,7 @@ export default function ProjectsPage() {
   const [formData, setFormData] = useState<ProjectFormData>(initialFormData);
   const [techInput, setTechInput] = useState('');
 
-  const projects = useQuery(api.cv.getProjects, userId ? { userId } : 'skip');
+  const projects = useQuery(api.cv.getProjects, {});
   const addProject = useMutation(api.cv.addProject);
   const updateProject = useMutation(api.cv.updateProject);
   const deleteProject = useMutation(api.cv.deleteProject);
@@ -40,7 +40,6 @@ export default function ProjectsPage() {
 
     const projectData = {
       ...formData,
-      userId,
       url: formData.url || undefined,
       github: formData.github || undefined,
       order: projects?.length || 0,
@@ -64,7 +63,7 @@ export default function ProjectsPage() {
     }
   };
 
-  const handleEdit = (project: any) => {
+  const handleEdit = (project: { _id: Id<'projects'>; name: string; description: string; technologies: string[]; url?: string; github?: string }) => {
     setFormData({
       name: project.name,
       description: project.description,

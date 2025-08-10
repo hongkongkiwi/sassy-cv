@@ -1,4 +1,6 @@
-'use client';
+"use client";
+
+import { isAIAvailable } from '@/lib/deploy';
 
 import React, { useState } from 'react';
 import { useAuth } from '@clerk/nextjs';
@@ -27,7 +29,7 @@ export default function AIAnalysisPage() {
   const [isGeneratingSuggestions, setIsGeneratingSuggestions] = useState(false);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
 
-  const cvDataFromDB = useQuery(api.cv.getAllCVData, userId ? { userId } : 'skip');
+  const cvDataFromDB = useQuery(api.cv.getAllCVData, {});
 
   // Transform Convex data to match CVData interface
   const transformedCVData: CVData | null = cvDataFromDB ? {
@@ -156,9 +158,14 @@ export default function AIAnalysisPage() {
             Get comprehensive AI-powered feedback on your CV to improve your job application success rate.
           </p>
         </div>
-
-        {/* CV Analysis Component */}
-        <CVAnalysis cvData={transformedCVData} />
+        {isAIAvailable ? (
+          // CV Analysis Component (only when server APIs available)
+          <CVAnalysis cvData={transformedCVData} />
+        ) : (
+          <div className="p-4 border rounded bg-yellow-50 text-yellow-800">
+            AI features are disabled for this environment.
+          </div>
+        )}
 
         {/* Improvement Suggestions */}
         <div className="bg-white p-6 rounded-lg shadow-sm">
@@ -178,15 +185,17 @@ export default function AIAnalysisPage() {
               />
             </div>
 
-            <AIProviderSelector
-              selectedProvider={provider}
-              onProviderChange={setProvider}
-              className="flex-1 max-w-xs"
-            />
+            {isAIAvailable && (
+              <AIProviderSelector
+                selectedProvider={provider}
+                onProviderChange={setProvider}
+                className="flex-1 max-w-xs"
+              />
+            )}
             
             <button
               onClick={handleGenerateSuggestions}
-              disabled={isGeneratingSuggestions}
+              disabled={!isAIAvailable || isGeneratingSuggestions}
               className="bg-purple-600 text-white px-6 py-2 rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {isGeneratingSuggestions ? (

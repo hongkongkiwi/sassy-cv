@@ -16,6 +16,10 @@ export const getThemes = query({
 export const getUserSettings = query({
   args: { userId: v.string() },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity?.tokenIdentifier || identity.subject !== args.userId) {
+      throw new Error("Unauthorized");
+    }
     return await ctx.db
       .query("userSettings")
       .withIndex("by_user", (q) => q.eq("userId", args.userId))
@@ -38,6 +42,10 @@ export const updateUserSettings = mutation({
     })),
   },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity?.tokenIdentifier || identity.subject !== args.userId) {
+      throw new Error("Unauthorized");
+    }
     const existing = await ctx.db
       .query("userSettings")
       .withIndex("by_user", (q) => q.eq("userId", args.userId))

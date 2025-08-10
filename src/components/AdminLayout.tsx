@@ -150,8 +150,9 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
             <Link
               href="/"
               className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-700 rounded-xl hover:bg-gray-50 transition-colors duration-200"
+              aria-label="View Public CV"
             >
-              <span className="text-lg">👁️</span>
+              <span className="text-lg" aria-hidden>👁️</span>
               <span>View Public CV</span>
             </Link>
             <div className="flex items-center justify-between px-4 py-3">

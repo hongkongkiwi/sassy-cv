@@ -303,7 +303,7 @@ export const CoverLetterEditor: React.FC<CoverLetterEditorProps> = ({
               <li>• Keep it to one page (3-4 paragraphs)</li>
               <li>• Start with a strong opening</li>
               <li>• Use specific examples</li>
-              <li>• Match the company's tone</li>
+              <li>• Match the company&#39;s tone</li>
               <li>• End with a call to action</li>
               <li>• Proofread for errors</li>
             </ul>

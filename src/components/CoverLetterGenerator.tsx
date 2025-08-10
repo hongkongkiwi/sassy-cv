@@ -1,4 +1,6 @@
-'use client';
+"use client";
+
+import { isAIAvailable } from '@/lib/deploy';
 
 import React, { useState } from 'react';
 import { useQuery, useMutation } from 'convex/react';
@@ -18,28 +20,32 @@ export const CoverLetterGenerator: React.FC<CoverLetterGeneratorProps> = ({
   const [jobDescription, setJobDescription] = useState('');
   const [company, setCompany] = useState('');
   const [position, setPosition] = useState('');
-  const [provider, setProvider] = useState('openai');
+  const [provider, setProvider] = useState<'openai' | 'google'>('openai');
   const [generating, setGenerating] = useState(false);
   const [generatedContent, setGeneratedContent] = useState('');
   const [saving, setSaving] = useState(false);
   const [title, setTitle] = useState('');
 
   // Fetch CV data
-  const contactInfo = useQuery(api.cv.getContactInfo, { userId }) || [];
-  const experiences = useQuery(api.cv.getExperiences, { userId }) || [];
-  const skills = useQuery(api.cv.getSkills, { userId }) || [];
-  const education = useQuery(api.cv.getEducation, { userId }) || [];
+  const contactInfo = useQuery(api.cv.getContactInfo, {}) as any;
+  const experiences = useQuery(api.cv.getExperiences, {}) || [];
+  const skills = useQuery(api.cv.getSkills, {}) || [];
+  const education = useQuery(api.cv.getEducation, {}) || [];
 
   const createCoverLetter = useMutation(api.coverLetters.createCoverLetter);
 
   const cvData = {
-    contactInfo: contactInfo[0] || null,
+    contactInfo: contactInfo || null,
     experiences: experiences.slice(0, 5), // Most recent experiences
     skills,
     education,
   };
 
   const handleGenerate = async () => {
+    if (!isAIAvailable) {
+      alert('AI generation is disabled in this environment.');
+      return;
+    }
     if (!jobDescription.trim()) {
       alert('Please enter a job description');
       return;
@@ -180,7 +186,7 @@ export const CoverLetterGenerator: React.FC<CoverLetterGeneratorProps> = ({
               </label>
               <select
                 value={provider}
-                onChange={(e) => setProvider(e.target.value)}
+                onChange={(e) => setProvider(e.target.value as 'openai' | 'google')}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2"
               >
                 <option value="openai">OpenAI GPT-4</option>
@@ -191,7 +197,7 @@ export const CoverLetterGenerator: React.FC<CoverLetterGeneratorProps> = ({
 
           <Button 
             onClick={handleGenerate}
-            disabled={generating || !jobDescription.trim()}
+            disabled={!isAIAvailable || generating || !jobDescription.trim()}
             className="w-full"
           >
             {generating ? (
@@ -284,7 +290,7 @@ export const CoverLetterGenerator: React.FC<CoverLetterGeneratorProps> = ({
               <div className="text-4xl mb-4">📝</div>
               <h4 className="font-medium text-gray-900 mb-2">Ready to Generate</h4>
               <p className="text-gray-600">
-                Fill in the job information and click "Generate Cover Letter" to create your personalized cover letter.
+                Fill in the job information and click &quot;Generate Cover Letter&quot; to create your personalized cover letter.
               </p>
             </Card>
           )}
@@ -299,7 +305,7 @@ export const CoverLetterGenerator: React.FC<CoverLetterGeneratorProps> = ({
             <h4 className="font-medium text-gray-900 mb-2">Job Description</h4>
             <ul className="text-sm text-gray-600 space-y-1">
               <li>• Include the complete job posting</li>
-              <li>• Don't edit or summarize the requirements</li>
+              <li>• Don&#39;t edit or summarize the requirements</li>
               <li>• Include company culture information if available</li>
             </ul>
           </div>

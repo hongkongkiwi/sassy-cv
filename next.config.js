@@ -1,6 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  env: {
+    NEXT_PUBLIC_DEPLOY_TARGET: process.env.DEPLOY_TARGET,
+    NEXT_PUBLIC_PUBLIC_USER_ID: process.env.NEXT_PUBLIC_PUBLIC_USER_ID,
+    NEXT_PUBLIC_DISABLE_AI: process.env.NEXT_PUBLIC_DISABLE_AI,
+  },
   
   // Enable static exports for Cloudflare Pages deployment
   output: process.env.DEPLOY_TARGET === 'cloudflare' ? 'export' : undefined,

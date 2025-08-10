@@ -5,6 +5,10 @@ import { v } from "convex/values";
 export const getCoverLetters = query({
   args: { userId: v.string() },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity?.tokenIdentifier || identity.subject !== args.userId) {
+      throw new Error("Unauthorized");
+    }
     return await ctx.db
       .query("coverLetters")
       .withIndex("by_user", (q) => q.eq("userId", args.userId))
@@ -17,7 +21,15 @@ export const getCoverLetters = query({
 export const getCoverLetter = query({
   args: { id: v.id("coverLetters") },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.id);
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity?.tokenIdentifier) {
+      throw new Error("Unauthorized");
+    }
+    const letter = await ctx.db.get(args.id);
+    if (!letter || letter.userId !== identity.subject) {
+      throw new Error("Forbidden");
+    }
+    return letter;
   },
 });
 
@@ -32,6 +44,10 @@ export const createCoverLetter = mutation({
     isTemplate: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity?.tokenIdentifier || identity.subject !== args.userId) {
+      throw new Error("Unauthorized");
+    }
     const now = Date.now();
     return await ctx.db.insert("coverLetters", {
       userId: args.userId,
@@ -56,9 +72,16 @@ export const updateCoverLetter = mutation({
     company: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity?.tokenIdentifier) {
+      throw new Error("Unauthorized");
+    }
     const existing = await ctx.db.get(args.id);
     if (!existing) {
       throw new Error("Cover letter not found");
+    }
+    if (existing.userId !== identity.subject) {
+      throw new Error("Forbidden");
     }
 
     const updates: any = {
@@ -78,11 +101,17 @@ export const updateCoverLetter = mutation({
 export const deleteCoverLetter = mutation({
   args: { id: v.id("coverLetters") },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity?.tokenIdentifier) {
+      throw new Error("Unauthorized");
+    }
     const existing = await ctx.db.get(args.id);
     if (!existing) {
       throw new Error("Cover letter not found");
     }
-
+    if (existing.userId !== identity.subject) {
+      throw new Error("Forbidden");
+    }
     return await ctx.db.delete(args.id);
   },
 });
@@ -94,6 +123,10 @@ export const duplicateCoverLetter = mutation({
     const original = await ctx.db.get(args.id);
     if (!original) {
       throw new Error("Cover letter not found");
+    }
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity?.tokenIdentifier || identity.subject !== original.userId) {
+      throw new Error("Unauthorized");
     }
 
     const now = Date.now();
@@ -114,6 +147,10 @@ export const duplicateCoverLetter = mutation({
 export const getTemplates = query({
   args: { userId: v.string() },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity?.tokenIdentifier || identity.subject !== args.userId) {
+      throw new Error("Unauthorized");
+    }
     return await ctx.db
       .query("coverLetters")
       .withIndex("by_user", (q) => q.eq("userId", args.userId))
@@ -127,6 +164,10 @@ export const getTemplates = query({
 export const createDefaultTemplates = mutation({
   args: { userId: v.string() },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity?.tokenIdentifier || identity.subject !== args.userId) {
+      throw new Error("Unauthorized");
+    }
     const now = Date.now();
     
     const templates = [

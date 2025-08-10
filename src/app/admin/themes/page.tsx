@@ -226,7 +226,7 @@ export default function ThemesPage() {
                 <div>
                   <h3 className="font-medium text-purple-900">Theme Preview Active</h3>
                   <p className="text-sm text-purple-700">
-                    You're previewing a theme. Apply it to make it permanent or cancel to revert.
+                    You&#39;re previewing a theme. Apply it to make it permanent or cancel to revert.
                   </p>
                 </div>
               </div>
@@ -247,7 +247,7 @@ export default function ThemesPage() {
             <div className="text-6xl mb-4">🎨</div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">No Themes Available</h3>
             <p className="text-gray-600 mb-6">
-              It looks like the default themes haven't been created yet.
+              It looks like the default themes haven&#39;t been created yet.
             </p>
             <Button onClick={handleSeedThemes} variant="primary">
               Create Default Themes

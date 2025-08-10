@@ -20,14 +20,15 @@ import { CVData } from '@/types/cv';
 
 export default function Home() {
   const { userId } = useAuth();
-  const cvDataFromDB = useQuery(api.cv.getAllCVData, userId ? { userId } : 'skip');
+  const cvDataFromDB = useQuery(api.cv.getAllCVData, {});
   const trackEvent = useMutation(api.analytics.trackEvent);
 
   // Track page view
   useEffect(() => {
     const trackPageView = async () => {
-      // Get the CV owner's userId (for now, use the first available or fallback)
-      const cvOwnerId = userId || 'default-user'; // In real app, you'd get this from the CV data
+      // Determine CV owner id from stored data or fallback to anonymous default owner
+      const cvOwnerId =
+        cvDataFromDB?.contactInfo?.userId || process.env.NEXT_PUBLIC_PUBLIC_USER_ID || 'public-cv-owner';
       
       // Generate or get visitor ID
       let visitorId = localStorage.getItem('cv-visitor-id');
@@ -59,7 +60,7 @@ export default function Home() {
     };
 
     trackPageView();
-  }, [trackEvent, userId]);
+  }, [trackEvent, userId, cvDataFromDB?.contactInfo?.userId]);
 
   // Transform Convex data to match CVData interface
   const transformedCVData: CVData | null = cvDataFromDB ? {
@@ -117,7 +118,8 @@ export default function Home() {
       saveAs(blob, `${currentCVData.contact.name.replace(/\s+/g, '_')}_CV.pdf`);
       
       // Track download event
-      const cvOwnerId = userId || 'default-user';
+      const cvOwnerId =
+        cvDataFromDB?.contactInfo?.userId || process.env.NEXT_PUBLIC_PUBLIC_USER_ID || 'public-cv-owner';
       let visitorId = localStorage.getItem('cv-visitor-id');
       if (!visitorId) {
         visitorId = Math.random().toString(36).substr(2, 9);
@@ -178,8 +180,9 @@ export default function Home() {
               <button
                 onClick={handleExportPDF}
                 className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium py-2.5 px-5 rounded-lg transition-all duration-200 flex items-center gap-2 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                aria-label="Export CV to PDF"
               >
-                <span>📄</span>
+                <span aria-hidden>📄</span>
                 Export PDF
               </button>
             </div>

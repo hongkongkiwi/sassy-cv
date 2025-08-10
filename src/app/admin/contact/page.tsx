@@ -22,7 +22,7 @@ export default function ContactPage() {
   });
   const [showAIModal, setShowAIModal] = useState(false);
 
-  const contactInfo = useQuery(api.cv.getContactInfo, userId ? { userId } : 'skip');
+  const contactInfo = useQuery(api.cv.getContactInfo, {});
   const upsertContactInfo = useMutation(api.cv.upsertContactInfo);
 
   useEffect(() => {
@@ -47,7 +47,6 @@ export default function ContactPage() {
 
     try {
       await upsertContactInfo({
-        userId,
         ...formData,
         phone: formData.phone || undefined,
         linkedin: formData.linkedin || undefined,

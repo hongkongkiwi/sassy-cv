@@ -8,6 +8,7 @@
     "build:static": "DEPLOY_TARGET=cloudflare next build",
     "start": "next start",
     "lint": "next lint",
+    "lint:ci": "next lint --max-warnings=0",
     "deploy": "pnpm build:static && wrangler pages deploy out --project-name=sassy-cv",
     "deploy:staging": "pnpm build:static && wrangler pages deploy out --project-name=sassy-cv --env=staging",
     "deploy:vercel": "DEPLOY_TARGET=vercel vercel --prod",
@@ -15,6 +16,7 @@
     "convex:dev": "convex dev",
     "convex:deploy": "convex deploy",
     "type-check": "tsc --noEmit",
+    "test:e2e": "playwright test",
     "postinstall": "convex codegen"
   },
   "packageManager": "pnpm@8.15.0",
@@ -43,6 +45,11 @@
   },
   "devDependencies": {
     "@cloudflare/next-on-pages": "^1.13.5",
+    "@playwright/test": "^1.54.2",
+    "eslint": "^9.10.0",
+    "eslint-config-next": "^15.4.6",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.3.3",
     "vercel": "^39.2.0",
     "wrangler": "^3.109.0"
   }

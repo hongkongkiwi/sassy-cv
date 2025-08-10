@@ -16,6 +16,7 @@ export const trackEvent = mutation({
     metadata: v.optional(v.object({})),
   },
   handler: async (ctx, args) => {
+    // Allow public tracking for a specific owner userId; no auth enforced here by design
     return await ctx.db.insert("analytics", {
       ...args,
       timestamp: Date.now(),
@@ -27,6 +28,10 @@ export const trackEvent = mutation({
 export const getAnalyticsOverview = query({
   args: { userId: v.string() },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity?.tokenIdentifier || identity.subject !== args.userId) {
+      throw new Error("Unauthorized");
+    }
     const events = await ctx.db
       .query("analytics")
       .withIndex("by_user", (q) => q.eq("userId", args.userId))
@@ -115,6 +120,10 @@ export const getDetailedAnalytics = query({
     event: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity?.tokenIdentifier || identity.subject !== args.userId) {
+      throw new Error("Unauthorized");
+    }
     const days = args.days || 30;
     const cutoff = Date.now() - (days * 24 * 60 * 60 * 1000);
     
@@ -144,6 +153,10 @@ export const getAnalyticsForRange = query({
     endDate: v.number(),
   },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity?.tokenIdentifier || identity.subject !== args.userId) {
+      throw new Error("Unauthorized");
+    }
     const events = await ctx.db
       .query("analytics")
       .withIndex("by_user", (q) => q.eq("userId", args.userId))

@@ -150,7 +150,7 @@ export default function AnalyticsPage() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Analytics Dashboard</h1>
           <p className="text-gray-600 mt-2">
-            Track your CV's performance and visitor engagement
+            Track your CV&#39;s performance and visitor engagement
           </p>
         </div>
 
@@ -266,9 +266,11 @@ export default function AnalyticsPage() {
             <p className="text-gray-600 mb-6">
               Start sharing your CV to see analytics data here. Your public CV is available at:
             </p>
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 inline-block">
-              <code className="text-blue-800">{window.location.origin}</code>
-            </div>
+            {typeof window !== 'undefined' && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 inline-block">
+                <code className="text-blue-800">{window.location.origin}</code>
+              </div>
+            )}
             <p className="text-sm text-gray-500 mt-4">
               Analytics will automatically start tracking once people visit your CV
             </p>

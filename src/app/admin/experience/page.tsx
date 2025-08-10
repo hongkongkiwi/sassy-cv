@@ -35,7 +35,7 @@ export default function ExperiencePage() {
   const [techInput, setTechInput] = useState('');
   const [showAIModal, setShowAIModal] = useState(false);
 
-  const experiences = useQuery(api.cv.getExperiences, userId ? { userId } : 'skip');
+  const experiences = useQuery(api.cv.getExperiences, {});
   const addExperience = useMutation(api.cv.addExperience);
   const updateExperience = useMutation(api.cv.updateExperience);
   const deleteExperience = useMutation(api.cv.deleteExperience);
@@ -46,7 +46,6 @@ export default function ExperiencePage() {
 
     const experienceData = {
       ...formData,
-      userId,
       endDate: formData.endDate || undefined,
       technologies: formData.technologies.length > 0 ? formData.technologies : undefined,
       order: experiences?.length || 0,
@@ -70,7 +69,7 @@ export default function ExperiencePage() {
     }
   };
 
-  const handleEdit = (exp: any) => {
+  const handleEdit = (exp: { _id: Id<'experiences'>; company: string; position: string; startDate: string; endDate?: string; location: string; description: string[]; technologies?: string[] }) => {
     setFormData({
       company: exp.company,
       position: exp.position,

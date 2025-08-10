@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
@@ -66,12 +66,13 @@ const defaultTheme: Theme = {
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { userId } = useAuth();
   const [currentTheme, setCurrentTheme] = useState<Theme | null>(defaultTheme);
-  
-  const themes = useQuery(api.themes.getThemes, {}) || [];
+
+  const themesQuery = useQuery(api.themes.getThemes, {});
+  const themes = useMemo(() => themesQuery ?? [], [themesQuery]);
   const userSettings = useQuery(api.themes.getUserSettings, userId ? { userId } : 'skip');
   const updateSettings = useMutation(api.themes.updateUserSettings);
 
-  const isLoading = themes.length === 0;
+  const isLoading = themesQuery === undefined;
 
   // Apply theme to document
   const applyTheme = (theme: Theme) => {

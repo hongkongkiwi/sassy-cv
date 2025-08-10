@@ -1,5 +1,3 @@
-/* prettier-ignore-start */
-
 /* eslint-disable */
 /**
  * Generated `api` utility.
@@ -15,11 +13,10 @@ import { anyApi } from "convex/server";
 /**
  * A utility for referencing Convex functions in your app's API.
  *
- * Usage for example:
+ * Usage:
  * ```js
  * const myFunctionReference = api.myModule.myFunction;
  * ```
  */
 export const api = anyApi;
-
-/* prettier-ignore-end */
+export const internal = anyApi;
