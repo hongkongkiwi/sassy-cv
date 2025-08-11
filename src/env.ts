@@ -100,7 +100,7 @@ export const env = createEnv({
   
   // Custom validation for AI features
   onValidationError: (error) => {
-    console.error("❌ Invalid environment variables:", error.issues);
+    console.error("❌ Invalid environment variables:", error);
     throw new Error("Invalid environment variables");
   },
   

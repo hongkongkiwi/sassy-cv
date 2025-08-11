@@ -4,10 +4,11 @@ import { ReactNode } from "react";
 import { ConvexProviderWithClerk } from "convex/react-clerk";
 import { useAuth } from "@clerk/nextjs";
 import { ConvexReactClient, ConvexProvider } from "convex/react";
+import { env } from "@/env";
 
 export function ConvexClientProvider({ children }: { children: ReactNode }) {
-  const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
-  const hasClerk = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
+  const convexUrl = env.NEXT_PUBLIC_CONVEX_URL;
+  const hasClerk = Boolean(env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
 
   if (!convexUrl) {
     return (

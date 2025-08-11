@@ -67,9 +67,13 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const { userId } = useAuth();
   const [currentTheme, setCurrentTheme] = useState<Theme | null>(defaultTheme);
 
+  // Get the first workspace for the user
+  const cvData = useQuery(api.cv.getAllCVData, userId ? {} : 'skip');
+  const workspaceId = cvData?.contactInfo?.workspaceId;
+
   const themesQuery = useQuery(api.themes.getThemes, {});
   const themes = useMemo(() => themesQuery ?? [], [themesQuery]);
-  const userSettings = useQuery(api.themes.getUserSettings, userId ? { userId } : 'skip');
+  const userSettings = useQuery(api.themes.getUserSettings, workspaceId ? { workspaceId } : 'skip');
   const updateSettings = useMutation(api.themes.updateUserSettings);
 
   const isLoading = themesQuery === undefined;
@@ -91,14 +95,14 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Set theme and save to database
   const setTheme = async (themeId: string) => {
     const theme = themes.find(t => t._id === themeId);
-    if (theme && userId) {
-      setCurrentTheme(theme);
-      applyTheme(theme);
+    if (theme && workspaceId) {
+      setCurrentTheme(theme as any);
+      applyTheme(theme as any);
       
       try {
         await updateSettings({
-          userId,
-          selectedTheme: themeId,
+          workspaceId,
+          selectedTheme: themeId as any,
         });
       } catch (error) {
         console.error('Failed to save theme preference:', error);
@@ -114,11 +118,11 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (userSettings?.selectedTheme) {
         const savedTheme = themes.find(t => t._id === userSettings.selectedTheme);
         if (savedTheme) {
-          themeToApply = savedTheme;
+          themeToApply = savedTheme as any;
         }
       } else {
         // Use first available theme as default
-        themeToApply = themes[0] || defaultTheme;
+        themeToApply = (themes[0] as any) || defaultTheme;
       }
       
       setCurrentTheme(themeToApply);
@@ -129,7 +133,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   return (
     <ThemeContext.Provider 
       value={{
-        themes,
+        themes: themes as any,
         currentTheme,
         isLoading,
         setTheme,
