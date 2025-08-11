@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { env } from '@/env';
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -30,7 +31,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
     console.error('ErrorBoundary caught an error:', error, errorInfo);
     
     // Log error to external service in production
-    if (process.env.NODE_ENV === 'production') {
+    if (env.NODE_ENV === 'production') {
       this.logErrorToService(error, errorInfo);
     }
     
@@ -98,7 +99,7 @@ const DefaultErrorFallback: React.FC<DefaultErrorFallbackProps> = ({ error, rese
               We&apos;re sorry, but something unexpected happened. Please try again.
             </p>
             
-            {process.env.NODE_ENV === 'development' && error && (
+            {env.NODE_ENV === 'development' && error && (
               <details className="mt-4 text-left">
                 <summary className="text-sm font-medium text-gray-700 cursor-pointer">
                   Error Details (Development)

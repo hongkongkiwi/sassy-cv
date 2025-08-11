@@ -49,6 +49,8 @@ vi.mock('convex/react', () => ({
 // Mock environment variables
 process.env.NEXT_PUBLIC_CONVEX_URL = 'https://test.convex.cloud';
 process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = 'pk_test_key';
+process.env.CLERK_SECRET_KEY = 'sk_test_key';
+// NODE_ENV is read-only in Node typings; tests already run with NODE_ENV=test via Vitest
 
 // Suppress console errors in tests
 const originalError = console.error;

@@ -1,29 +1,29 @@
 import type { NextConfig } from 'next';
 
 // Import env to validate at build time
-import './src/env';
+import { env } from './src/env';
 
 // Bundle analyzer configuration
 const withBundleAnalyzer = require('@next/bundle-analyzer')({
-  enabled: process.env.ANALYZE === 'true',
+  enabled: Boolean(env.ANALYZE),
 });
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   
   // Enable static exports for Cloudflare Pages deployment
-  output: process.env.DEPLOY_TARGET === 'cloudflare' ? 'export' : undefined,
+  output: env.DEPLOY_TARGET === 'cloudflare' ? 'export' : undefined,
   
   // Disable image optimization for static export
-  images: process.env.DEPLOY_TARGET === 'cloudflare' ? {
+  images: env.DEPLOY_TARGET === 'cloudflare' ? {
     unoptimized: true
   } : undefined,
   
   // Configure trailing slash for static export
-  trailingSlash: process.env.DEPLOY_TARGET === 'cloudflare' ? true : false,
+  trailingSlash: env.DEPLOY_TARGET === 'cloudflare' ? true : false,
   
   // Disable server-side features for static export
-  ...(process.env.DEPLOY_TARGET === 'cloudflare' && {
+  ...(env.DEPLOY_TARGET === 'cloudflare' && {
     experimental: {
       runtime: 'edge'
     }

@@ -8,6 +8,14 @@ export default defineConfig({
     environment: 'happy-dom',
     globals: true,
     setupFiles: './src/test/setup.ts',
+    exclude: [
+      'node_modules',
+      'dist',
+      '.next',
+      'out',
+      // Exclude Playwright end-to-end tests from Vitest
+      'tests/**',
+    ],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

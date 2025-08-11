@@ -36,6 +36,8 @@ export const env = createEnv({
     // Feature Flags
     ENABLE_LINKEDIN_IMPORT: z.coerce.boolean().default(false),
     ENABLE_AI_FEATURES: z.coerce.boolean().default(true),
+    // Build-time analyzer toggle
+    ANALYZE: z.coerce.boolean().optional(),
   },
   
   client: {
@@ -58,6 +60,8 @@ export const env = createEnv({
     // Feature Flags
     NEXT_PUBLIC_ENABLE_ANALYTICS: z.coerce.boolean().default(true),
     NEXT_PUBLIC_ENABLE_PDF_EXPORT: z.coerce.boolean().default(true),
+    // Expose environment to client where needed for UI/debug
+    NEXT_PUBLIC_NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   },
   
   runtimeEnv: {
@@ -67,6 +71,7 @@ export const env = createEnv({
     OPENAI_API_KEY: process.env.OPENAI_API_KEY,
     GOOGLE_GENERATIVE_AI_API_KEY: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
     NODE_ENV: process.env.NODE_ENV,
+    ANALYZE: process.env.ANALYZE,
     DEPLOY_TARGET: process.env.DEPLOY_TARGET,
     RATE_LIMIT_API_REQUESTS_PER_MINUTE: process.env.RATE_LIMIT_API_REQUESTS_PER_MINUTE,
     RATE_LIMIT_WINDOW_MS: process.env.RATE_LIMIT_WINDOW_MS,
@@ -92,6 +97,7 @@ export const env = createEnv({
     NEXT_PUBLIC_PUBLIC_USER_ID: process.env.NEXT_PUBLIC_PUBLIC_USER_ID,
     NEXT_PUBLIC_ENABLE_ANALYTICS: process.env.NEXT_PUBLIC_ENABLE_ANALYTICS,
     NEXT_PUBLIC_ENABLE_PDF_EXPORT: process.env.NEXT_PUBLIC_ENABLE_PDF_EXPORT,
+    NEXT_PUBLIC_NODE_ENV: process.env.NODE_ENV,
   },
   
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
@@ -111,6 +117,11 @@ export const env = createEnv({
 });
 
 // Validate that at least one AI provider is configured if AI features are enabled
-if (env.ENABLE_AI_FEATURES && !env.OPENAI_API_KEY && !env.GOOGLE_GENERATIVE_AI_API_KEY) {
-  console.warn("⚠️ AI features are enabled but no AI provider API keys are configured. AI features will be disabled.");
+// Run this check only on the server to avoid accessing server-only env on the client/test DOM environment
+if (typeof window === 'undefined') {
+  if (env.ENABLE_AI_FEATURES && !env.OPENAI_API_KEY && !env.GOOGLE_GENERATIVE_AI_API_KEY) {
+    console.warn(
+      "⚠️ AI features are enabled but no AI provider API keys are configured. AI features will be disabled."
+    );
+  }
 }

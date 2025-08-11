@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { env } from '@/env';
 
 export function generateCSPNonce(): string {
   return crypto.randomBytes(16).toString('base64');
@@ -38,7 +39,7 @@ export function getSecurityHeaders(nonce?: string) {
     'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
     
     // Strict Transport Security (HTTPS only)
-    ...(process.env.NODE_ENV === 'production' && {
+    ...(env.NODE_ENV === 'production' && {
       'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload'
     })
   };

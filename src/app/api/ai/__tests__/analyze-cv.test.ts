@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { POST } from '../analyze-cv/route';
 import { NextRequest } from 'next/server';

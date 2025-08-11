@@ -36,7 +36,8 @@ export function rateLimit(options: RateLimitOptions = {}) {
     maxRequests = 10,
     identifier = (req) => req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown',
     endpoint = 'default',
-    usePersistent = true,
+    // Only use persistent rate limiting in production to avoid test/dev flakiness
+    usePersistent = env.NODE_ENV === 'production',
   } = options;
 
   return async (req: NextRequest): Promise<{ success: boolean; limit?: number; remaining?: number; reset?: number; retryAfter?: number }> => {
