@@ -1,8 +1,10 @@
 import { generateObject } from 'ai';
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getAIModel, AIProvider } from '@/lib/ai-providers';
 import { auth } from '@clerk/nextjs/server';
+import { handleCors, withCors } from '@/lib/cors';
+import { enforce, apiRules } from '@/lib/arcjet';
 
 const SuggestionSchema = z.object({
   suggestions: z.array(z.object({
@@ -17,17 +19,36 @@ const SuggestionSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+  // Handle CORS preflight
+  const corsResponse = handleCors(request);
+  if (corsResponse) return corsResponse;
+
   try {
+    // Arcjet protection
+    const ajDecision = await enforce(request, apiRules({ requestsPerMinute: 30 }));
+    if (!ajDecision.ok) {
+      return withCors(
+        NextResponse.json({ error: 'Request blocked' }, { status: 403 }),
+        request
+      );
+    }
+
     const { userId } = await auth();
     if (!userId) {
-      return Response.json({ error: 'Unauthorized' }, { status: 401 });
+      return withCors(
+        NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
+        request
+      );
     }
 
     const body = await request.json();
     const { cvData, targetRole = 'Software Engineer', provider = 'openai' } = body;
 
     if (!cvData) {
-      return Response.json({ error: 'CV data is required' }, { status: 400 });
+      return withCors(
+        NextResponse.json({ error: 'CV data is required' }, { status: 400 }),
+        request
+      );
     }
 
     const model = getAIModel(provider as AIProvider);
@@ -63,12 +84,22 @@ export async function POST(request: NextRequest) {
       `,
     });
 
-    return Response.json(object);
+    return withCors(
+      NextResponse.json(object),
+      request
+    );
   } catch (error) {
     console.error('Error generating suggestions:', error);
-    return Response.json(
-      { error: 'Failed to generate suggestions' },
-      { status: 500 }
+    return withCors(
+      NextResponse.json(
+        { error: 'Failed to generate suggestions' },
+        { status: 500 }
+      ),
+      request
     );
   }
+}
+
+export async function OPTIONS(request: NextRequest) {
+  return handleCors(request) || new NextResponse(null, { status: 405 });
 }

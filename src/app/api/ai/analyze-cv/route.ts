@@ -4,6 +4,8 @@ import { z } from 'zod';
 import { getAIModel, AIProvider } from '@/lib/ai-providers';
 import { auth } from '@clerk/nextjs/server';
 import { rateLimit, sanitizeInput, validateCVData, sanitizeAIPrompt } from '@/lib/security';
+import { handleCors, withCors } from '@/lib/cors';
+import { enforce, apiRules } from '@/lib/arcjet';
 
 const AnalysisSchema = z.object({
   overallScore: z.number().min(0).max(100).describe('Overall CV score out of 100'),
@@ -30,6 +32,7 @@ const AnalysisSchema = z.object({
 const aiRateLimit = rateLimit({
   windowMs: 5 * 60 * 1000, // 5 minutes
   maxRequests: 10, // 10 requests per 5 minutes
+  endpoint: 'ai-analyze-cv',
   identifier: async (req) => {
     const { userId } = await auth();
     return userId || req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
@@ -37,28 +40,47 @@ const aiRateLimit = rateLimit({
 });
 
 export async function POST(request: NextRequest) {
+  // Handle CORS preflight
+  const corsResponse = handleCors(request);
+  if (corsResponse) return corsResponse;
+
   try {
+    // Arcjet protection
+    const ajDecision = await enforce(request, apiRules({ requestsPerMinute: 30 }));
+    if (!ajDecision.ok) {
+      return withCors(
+        NextResponse.json({ error: 'Request blocked' }, { status: 403 }),
+        request
+      );
+    }
+
     const { userId } = await auth();
     if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return withCors(
+        NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
+        request
+      );
     }
 
     // Apply rate limiting
     const rateLimitResult = await aiRateLimit(request);
     if (!rateLimitResult.success) {
-      return NextResponse.json(
-        { 
-          error: 'Too many requests', 
-          retryAfter: rateLimitResult.reset 
-        }, 
-        { 
-          status: 429,
-          headers: {
-            'X-RateLimit-Limit': String(rateLimitResult.limit),
-            'X-RateLimit-Remaining': String(rateLimitResult.remaining),
-            'X-RateLimit-Reset': String(rateLimitResult.reset),
+      return withCors(
+        NextResponse.json(
+          { 
+            error: 'Too many requests', 
+            retryAfter: rateLimitResult.reset 
+          }, 
+          { 
+            status: 429,
+            headers: {
+              'X-RateLimit-Limit': String(rateLimitResult.limit),
+              'X-RateLimit-Remaining': String(rateLimitResult.remaining),
+              'X-RateLimit-Reset': String(rateLimitResult.reset),
+            }
           }
-        }
+        ),
+        request
       );
     }
 
@@ -69,24 +91,33 @@ export async function POST(request: NextRequest) {
     const cvData = sanitizeInput(rawCvData);
 
     if (!cvData) {
-      return NextResponse.json({ error: 'CV data is required' }, { status: 400 });
+      return withCors(
+        NextResponse.json({ error: 'CV data is required' }, { status: 400 }),
+        request
+      );
     }
     
     // Validate CV data structure and content
     const validation = validateCVData(cvData);
     if (!validation.valid) {
-      return NextResponse.json(
-        { error: 'Invalid CV data', details: validation.errors },
-        { status: 400 }
+      return withCors(
+        NextResponse.json(
+          { error: 'Invalid CV data', details: validation.errors },
+          { status: 400 }
+        ),
+        request
       );
     }
     
     // Validate provider
     const validProviders = ['openai', 'google'];
     if (!validProviders.includes(provider)) {
-      return NextResponse.json(
-        { error: 'Invalid AI provider' },
-        { status: 400 }
+      return withCors(
+        NextResponse.json(
+          { error: 'Invalid AI provider' },
+          { status: 400 }
+        ),
+        request
       );
     }
 
@@ -118,19 +149,29 @@ export async function POST(request: NextRequest) {
       `),
     });
 
-    return NextResponse.json(object, {
-      headers: {
-        'X-RateLimit-Limit': String(rateLimitResult.limit),
-        'X-RateLimit-Remaining': String(rateLimitResult.remaining),
-        'X-RateLimit-Reset': String(rateLimitResult.reset),
-      }
-    });
+    return withCors(
+      NextResponse.json(object, {
+        headers: {
+          'X-RateLimit-Limit': String(rateLimitResult.limit),
+          'X-RateLimit-Remaining': String(rateLimitResult.remaining),
+          'X-RateLimit-Reset': String(rateLimitResult.reset),
+        }
+      }),
+      request
+    );
   } catch (error) {
     // Log error safely without exposing sensitive details
     console.error('Error analyzing CV:', error instanceof Error ? error.message : 'Unknown error');
-    return NextResponse.json(
-      { error: 'Failed to analyze CV' },
-      { status: 500 }
+    return withCors(
+      NextResponse.json(
+        { error: 'Failed to analyze CV' },
+        { status: 500 }
+      ),
+      request
     );
   }
+}
+
+export async function OPTIONS(request: NextRequest) {
+  return handleCors(request) || new NextResponse(null, { status: 405 });
 }

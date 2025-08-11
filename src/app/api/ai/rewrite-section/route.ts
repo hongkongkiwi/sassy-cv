@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAIModel, AIProvider } from '@/lib/ai-providers';
 import { auth } from '@clerk/nextjs/server';
 import { rateLimit, sanitizeInput, sanitizeAIPrompt } from '@/lib/security';
+import { handleCors, withCors } from '@/lib/cors';
+import { enforce, apiRules } from '@/lib/arcjet';
 
 const rewriteRateLimit = rateLimit({
   windowMs: 5 * 60 * 1000, // 5 minutes
@@ -14,28 +16,47 @@ const rewriteRateLimit = rateLimit({
 });
 
 export async function POST(request: NextRequest) {
+  // Handle CORS preflight
+  const corsResponse = handleCors(request);
+  if (corsResponse) return corsResponse;
+
   try {
+    // Arcjet protection
+    const ajDecision = await enforce(request, apiRules({ requestsPerMinute: 60 }));
+    if (!ajDecision.ok) {
+      return withCors(
+        NextResponse.json({ error: 'Request blocked' }, { status: 403 }),
+        request
+      );
+    }
+
     const { userId } = await auth();
     if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return withCors(
+        NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
+        request
+      );
     }
 
     // Apply rate limiting
     const rateLimitResult = await rewriteRateLimit(request);
     if (!rateLimitResult.success) {
-      return NextResponse.json(
-        { 
-          error: 'Too many requests', 
-          retryAfter: rateLimitResult.reset 
-        }, 
-        { 
-          status: 429,
-          headers: {
-            'X-RateLimit-Limit': String(rateLimitResult.limit),
-            'X-RateLimit-Remaining': String(rateLimitResult.remaining),
-            'X-RateLimit-Reset': String(rateLimitResult.reset),
+      return withCors(
+        NextResponse.json(
+          { 
+            error: 'Too many requests', 
+            retryAfter: rateLimitResult.reset 
+          }, 
+          { 
+            status: 429,
+            headers: {
+              'X-RateLimit-Limit': String(rateLimitResult.limit),
+              'X-RateLimit-Remaining': String(rateLimitResult.remaining),
+              'X-RateLimit-Reset': String(rateLimitResult.reset),
+            }
           }
-        }
+        ),
+        request
       );
     }
 
@@ -51,7 +72,10 @@ export async function POST(request: NextRequest) {
     } = rawData;
 
     if (!section || !content) {
-      return NextResponse.json({ error: 'Section and content are required' }, { status: 400 });
+      return withCors(
+        NextResponse.json({ error: 'Section and content are required' }, { status: 400 }),
+        request
+      );
     }
     
     // Validate inputs
@@ -61,28 +85,43 @@ export async function POST(request: NextRequest) {
     const validLengths = ['shorter', 'similar', 'longer'];
     
     if (!validSections.includes(section)) {
-      return NextResponse.json({ error: 'Invalid section type' }, { status: 400 });
+      return withCors(
+        NextResponse.json({ error: 'Invalid section type' }, { status: 400 }),
+        request
+      );
     }
     
     if (!validProviders.includes(provider)) {
-      return NextResponse.json({ error: 'Invalid AI provider' }, { status: 400 });
+      return withCors(
+        NextResponse.json({ error: 'Invalid AI provider' }, { status: 400 }),
+        request
+      );
     }
     
     if (!validTones.includes(tone)) {
-      return NextResponse.json({ error: 'Invalid tone setting' }, { status: 400 });
+      return withCors(
+        NextResponse.json({ error: 'Invalid tone setting' }, { status: 400 }),
+        request
+      );
     }
     
     if (!validLengths.includes(length)) {
-      return NextResponse.json({ error: 'Invalid length setting' }, { status: 400 });
+      return withCors(
+        NextResponse.json({ error: 'Invalid length setting' }, { status: 400 }),
+        request
+      );
     }
     
     // Limit content length to prevent abuse
     const maxContentLength = 5000;
     const contentString = Array.isArray(content) ? content.join(' ') : String(content);
     if (contentString.length > maxContentLength) {
-      return NextResponse.json(
-        { error: `Content exceeds maximum length of ${maxContentLength} characters` },
-        { status: 400 }
+      return withCors(
+        NextResponse.json(
+          { error: `Content exceeds maximum length of ${maxContentLength} characters` },
+          { status: 400 }
+        ),
+        request
       );
     }
 
@@ -192,22 +231,32 @@ export async function POST(request: NextRequest) {
       prompt,
     });
 
-    return NextResponse.json(
-      { rewrittenContent: text.trim() },
-      {
-        headers: {
-          'X-RateLimit-Limit': String(rateLimitResult.limit),
-          'X-RateLimit-Remaining': String(rateLimitResult.remaining),
-          'X-RateLimit-Reset': String(rateLimitResult.reset),
+    return withCors(
+      NextResponse.json(
+        { rewrittenContent: text.trim() },
+        {
+          headers: {
+            'X-RateLimit-Limit': String(rateLimitResult.limit),
+            'X-RateLimit-Remaining': String(rateLimitResult.remaining),
+            'X-RateLimit-Reset': String(rateLimitResult.reset),
+          }
         }
-      }
+      ),
+      request
     );
   } catch (error) {
     // Log error safely without exposing sensitive details
     console.error('Error rewriting section:', error instanceof Error ? error.message : 'Unknown error');
-    return NextResponse.json(
-      { error: 'Failed to rewrite section' },
-      { status: 500 }
+    return withCors(
+      NextResponse.json(
+        { error: 'Failed to rewrite section' },
+        { status: 500 }
+      ),
+      request
     );
   }
+}
+
+export async function OPTIONS(request: NextRequest) {
+  return handleCors(request) || new NextResponse(null, { status: 405 });
 }
