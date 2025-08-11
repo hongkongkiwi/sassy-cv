@@ -16,12 +16,16 @@ export default function CoverLettersPage() {
   const [editingLetter, setEditingLetter] = useState<string | null>(null);
   const [selectedLetter, setSelectedLetter] = useState<string | null>(null);
   
+  // Get the first workspace for the user
+  const cvData = useQuery(api.cv.getAllCVData, userId ? {} : 'skip');
+  const workspaceId = cvData?.contactInfo?.workspaceId;
+  
   const coverLetters = useQuery(api.coverLetters.getCoverLetters, 
-    userId ? { userId } : 'skip'
+    workspaceId ? { workspaceId } : 'skip'
   ) || [];
   
   const templates = useQuery(api.coverLetters.getTemplates,
-    userId ? { userId } : 'skip'
+    workspaceId ? { workspaceId } : 'skip'
   ) || [];
   
   const createDefaultTemplates = useMutation(api.coverLetters.createDefaultTemplates);
@@ -39,8 +43,9 @@ export default function CoverLettersPage() {
   };
 
   const handleCreateTemplates = async () => {
+    if (!workspaceId) return;
     try {
-      await createDefaultTemplates({ userId: userId! });
+      await createDefaultTemplates({ workspaceId });
       alert('Default templates created successfully!');
     } catch (error) {
       console.error('Failed to create templates:', error);
@@ -80,7 +85,7 @@ export default function CoverLettersPage() {
     return (
       <AdminLayout>
         <CoverLetterGenerator 
-          userId={userId}
+          workspaceId={workspaceId!}
           onClose={() => setShowGenerator(false)}
         />
       </AdminLayout>

@@ -43,10 +43,11 @@ export default function ContactPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!userId) return;
+    if (!userId || !contactInfo) return;
 
     try {
       await upsertContactInfo({
+        workspaceId: contactInfo.workspaceId,
         ...formData,
         phone: formData.phone || undefined,
         linkedin: formData.linkedin || undefined,

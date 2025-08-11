@@ -35,14 +35,18 @@ export default function ExperiencePage() {
   const [techInput, setTechInput] = useState('');
   const [showAIModal, setShowAIModal] = useState(false);
 
-  const experiences = useQuery(api.cv.getExperiences, {});
-  const addExperience = useMutation(api.cv.addExperience);
+  // Get the first workspace for the user
+  const cvData = useQuery(api.cv.getAllCVData, userId ? {} : 'skip');
+  const workspaceId = cvData?.contactInfo?.workspaceId;
+
+  const experiences = useQuery(api.cv.getExperiences, workspaceId ? { workspaceId } : 'skip');
+  const createExperience = useMutation(api.cv.createExperience);
   const updateExperience = useMutation(api.cv.updateExperience);
   const deleteExperience = useMutation(api.cv.deleteExperience);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!userId) return;
+    if (!userId || !workspaceId) return;
 
     const experienceData = {
       ...formData,
@@ -58,7 +62,10 @@ export default function ExperiencePage() {
           ...experienceData,
         });
       } else {
-        await addExperience(experienceData);
+        await createExperience({
+          workspaceId,
+          ...experienceData,
+        });
       }
       
       setFormData(initialFormData);

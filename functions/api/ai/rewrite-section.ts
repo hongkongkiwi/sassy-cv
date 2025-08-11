@@ -27,9 +27,9 @@ export const onRequestPost: PagesFunction = async ({ request, env }) => {
     } else {
       const apiKey = env.GOOGLE_GENERATIVE_AI_API_KEY as string | undefined;
       if (!apiKey) return new Response(JSON.stringify({ error: 'GOOGLE_GENERATIVE_AI_API_KEY not configured' }), { status: 500 });
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent`;
       const resp = await fetch(geminiUrl, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
         body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
       });
       const data = await resp.json();

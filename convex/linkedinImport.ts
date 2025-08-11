@@ -1,33 +1,61 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
-// Get LinkedIn import history for a user
+// Get LinkedIn import history for a workspace
 export const getImportHistory = query({
-  args: { userId: v.string() },
+  args: { workspaceId: v.id("workspaces") },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity?.tokenIdentifier || identity.subject !== args.userId) {
+    if (!identity?.tokenIdentifier) {
       throw new Error("Unauthorized");
     }
+    
+    // Check workspace access
+    const collaboration = await ctx.db
+      .query("collaborators")
+      .withIndex("by_workspace_user", (q: any) => 
+        q.eq("workspaceId", args.workspaceId).eq("userId", identity.subject)
+      )
+      .filter((q: any) => q.eq(q.field("status"), "accepted"))
+      .first();
+    
+    if (!collaboration) {
+      throw new Error("Access denied");
+    }
+    
     return await ctx.db
       .query("linkedinImports")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .withIndex("by_workspace", (q: any) => q.eq("workspaceId", args.workspaceId))
       .order("desc")
       .take(10);
   },
 });
 
-// Get the latest LinkedIn import for a user
+// Get the latest LinkedIn import for a workspace
 export const getLatestImport = query({
-  args: { userId: v.string() },
+  args: { workspaceId: v.id("workspaces") },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity?.tokenIdentifier || identity.subject !== args.userId) {
+    if (!identity?.tokenIdentifier) {
       throw new Error("Unauthorized");
     }
+    
+    // Check workspace access
+    const collaboration = await ctx.db
+      .query("collaborators")
+      .withIndex("by_workspace_user", (q: any) => 
+        q.eq("workspaceId", args.workspaceId).eq("userId", identity.subject)
+      )
+      .filter((q: any) => q.eq(q.field("status"), "accepted"))
+      .first();
+    
+    if (!collaboration) {
+      throw new Error("Access denied");
+    }
+    
     const imports = await ctx.db
       .query("linkedinImports")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .withIndex("by_workspace", (q: any) => q.eq("workspaceId", args.workspaceId))
       .order("desc")
       .take(1);
     
@@ -38,7 +66,7 @@ export const getLatestImport = query({
 // Store LinkedIn import data
 export const storeImportData = mutation({
   args: {
-    userId: v.string(),
+    workspaceId: v.id("workspaces"),
     profileData: v.object({
       firstName: v.optional(v.string()),
       lastName: v.optional(v.string()),
@@ -80,15 +108,30 @@ export const storeImportData = mutation({
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity?.tokenIdentifier || identity.subject !== args.userId) {
+    if (!identity?.tokenIdentifier) {
       throw new Error("Unauthorized");
     }
+    
+    // Check workspace access
+    const collaboration = await ctx.db
+      .query("collaborators")
+      .withIndex("by_workspace_user", (q: any) => 
+        q.eq("workspaceId", args.workspaceId).eq("userId", identity.subject)
+      )
+      .filter((q: any) => q.eq(q.field("status"), "accepted"))
+      .first();
+    
+    if (!collaboration?.permissions.canEdit && collaboration?.role !== "owner") {
+      throw new Error("Insufficient permissions");
+    }
+    
     return await ctx.db.insert("linkedinImports", {
-      userId: args.userId,
+      workspaceId: args.workspaceId,
       profileData: args.profileData,
       experiences: args.experiences,
       education: args.education,
       skills: args.skills,
+      importedBy: identity.subject,
       importedAt: Date.now(),
       status: args.status,
     });
@@ -98,7 +141,7 @@ export const storeImportData = mutation({
 // Apply LinkedIn import to CV data
 export const applyImportToCV = mutation({
   args: { 
-    userId: v.string(),
+    workspaceId: v.id("workspaces"),
     importId: v.id("linkedinImports"),
     sections: v.object({
       contact: v.boolean(),
@@ -109,12 +152,26 @@ export const applyImportToCV = mutation({
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity?.tokenIdentifier || identity.subject !== args.userId) {
+    if (!identity?.tokenIdentifier) {
       throw new Error("Unauthorized");
     }
+    
+    // Check workspace access
+    const collaboration = await ctx.db
+      .query("collaborators")
+      .withIndex("by_workspace_user", (q: any) => 
+        q.eq("workspaceId", args.workspaceId).eq("userId", identity.subject)
+      )
+      .filter((q: any) => q.eq(q.field("status"), "accepted"))
+      .first();
+    
+    if (!collaboration?.permissions.canEdit && collaboration?.role !== "owner") {
+      throw new Error("Insufficient permissions");
+    }
+    
     // Get the import data
     const importData = await ctx.db.get(args.importId);
-    if (!importData || importData.userId !== args.userId) {
+    if (!importData || importData.workspaceId !== args.workspaceId) {
       throw new Error("Import not found or unauthorized");
     }
 
@@ -129,27 +186,34 @@ export const applyImportToCV = mutation({
     if (args.sections.contact && importData.profileData) {
       const existing = await ctx.db
         .query("contactInfo")
-        .withIndex("by_user", (q) => q.eq("userId", args.userId))
+        .withIndex("by_workspace", (q: any) => q.eq("workspaceId", args.workspaceId))
         .first();
 
       const { firstName, lastName, headline, summary, location } = importData.profileData;
       const name = [firstName, lastName].filter(Boolean).join(" ");
 
+      const now = Date.now();
       if (existing) {
         await ctx.db.patch(existing._id, {
           ...(name && { name }),
           ...(headline && { title: headline }),
           ...(summary && { summary }),
           ...(location && { location }),
+          version: existing.version + 1,
+          updatedAt: now,
         });
       } else if (name || headline || summary || location) {
         await ctx.db.insert("contactInfo", {
-          userId: args.userId,
+          workspaceId: args.workspaceId,
           name: name || "Your Name",
           title: headline || "Your Title",
           email: "your@email.com",
           location: location || "Your Location",
           summary: summary || "Your professional summary",
+          version: 1,
+          createdBy: identity.subject,
+          createdAt: now,
+          updatedAt: now,
         });
       }
       results.contact = true;
@@ -160,13 +224,14 @@ export const applyImportToCV = mutation({
       // Get existing experiences to determine the next order
       const existingExperiences = await ctx.db
         .query("experiences")
-        .withIndex("by_user", (q) => q.eq("userId", args.userId))
+        .withIndex("by_workspace_active", (q: any) => q.eq("workspaceId", args.workspaceId).eq("isActive", true))
         .collect();
       
       const maxOrder = existingExperiences.length > 0 
         ? Math.max(...existingExperiences.map(e => e.order)) 
         : -1;
 
+      const now = Date.now();
       for (let i = 0; i < importData.experiences.length; i++) {
         const exp = importData.experiences[i]!;
         const formatDate = (dateObj: any) => {
@@ -176,7 +241,7 @@ export const applyImportToCV = mutation({
         };
 
         await ctx.db.insert("experiences", {
-          userId: args.userId,
+          workspaceId: args.workspaceId,
           company: exp.companyName,
           position: exp.title,
           startDate: formatDate(exp.startDate) || "",
@@ -184,6 +249,11 @@ export const applyImportToCV = mutation({
           location: exp.location || "",
           description: exp.description ? [exp.description] : [""],
           order: maxOrder + i + 1,
+          version: 1,
+          createdBy: identity.subject,
+          createdAt: now,
+          updatedAt: now,
+          isActive: true,
         });
       }
       results.experience = true;
@@ -193,19 +263,20 @@ export const applyImportToCV = mutation({
     if (args.sections.education && importData.education) {
       const existingEducation = await ctx.db
         .query("education")
-        .withIndex("by_user", (q) => q.eq("userId", args.userId))
+        .withIndex("by_workspace_active", (q: any) => q.eq("workspaceId", args.workspaceId).eq("isActive", true))
         .collect();
       
       const maxOrder = existingEducation.length > 0 
         ? Math.max(...existingEducation.map(e => e.order)) 
         : -1;
 
+      const now = Date.now();
       for (let i = 0; i < importData.education.length; i++) {
         const edu = importData.education[i]!;
         const formatYear = (dateObj: any) => dateObj ? String(dateObj.year) : "";
 
         await ctx.db.insert("education", {
-          userId: args.userId,
+          workspaceId: args.workspaceId,
           institution: edu.schoolName,
           degree: edu.degreeName || "Degree",
           field: edu.fieldOfStudy,
@@ -214,6 +285,11 @@ export const applyImportToCV = mutation({
           location: "",
           description: edu.description,
           order: maxOrder + i + 1,
+          version: 1,
+          createdBy: identity.subject,
+          createdAt: now,
+          updatedAt: now,
+          isActive: true,
         });
       }
       results.education = true;
@@ -223,18 +299,24 @@ export const applyImportToCV = mutation({
     if (args.sections.skills && importData.skills && importData.skills.length > 0) {
       const existingSkills = await ctx.db
         .query("skills")
-        .withIndex("by_user", (q) => q.eq("userId", args.userId))
+        .withIndex("by_workspace_active", (q: any) => q.eq("workspaceId", args.workspaceId).eq("isActive", true))
         .collect();
       
       const maxOrder = existingSkills.length > 0 
         ? Math.max(...existingSkills.map(s => s.order)) 
         : -1;
 
+      const now = Date.now();
       await ctx.db.insert("skills", {
-        userId: args.userId,
+        workspaceId: args.workspaceId,
         category: "LinkedIn Skills",
         items: importData.skills,
         order: maxOrder + 1,
+        version: 1,
+        createdBy: identity.subject,
+        createdAt: now,
+        updatedAt: now,
+        isActive: true,
       });
       results.skills = true;
     }

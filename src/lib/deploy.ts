@@ -1,5 +1,7 @@
-export const isCloudflareStatic = process.env.NEXT_PUBLIC_DEPLOY_TARGET === 'cloudflare';
+import { env } from '@/env';
+
+export const isCloudflareStatic = env.DEPLOY_TARGET === 'cloudflare';
 // Disable AI features by default on Cloudflare static export (no Next.js API routes)
-export const isAIAvailable = process.env.NEXT_PUBLIC_DISABLE_AI === 'true'
+export const isAIAvailable = !env.ENABLE_AI_FEATURES
   ? false
   : !isCloudflareStatic;

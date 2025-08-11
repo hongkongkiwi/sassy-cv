@@ -3,13 +3,14 @@
 import React, { useState } from 'react';
 import { useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
+import { Id } from '../../convex/_generated/dataModel';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 
 interface LinkedInImportModalProps {
   isOpen: boolean;
   onClose: () => void;
-  userId: string;
+  workspaceId: Id<"workspaces">;
 }
 
 interface LinkedInData {
@@ -45,7 +46,7 @@ interface LinkedInData {
 export const LinkedInImportModal: React.FC<LinkedInImportModalProps> = ({
   isOpen,
   onClose,
-  userId,
+  workspaceId,
 }) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [linkedInData, setLinkedInData] = useState<LinkedInData>({
@@ -154,7 +155,7 @@ export const LinkedInImportModal: React.FC<LinkedInImportModalProps> = ({
     try {
       // Store import data
       const importId = await storeImportData({
-        userId,
+        workspaceId,
         profileData: linkedInData.profileData,
         experiences: linkedInData.experiences.length > 0 ? linkedInData.experiences : undefined,
         education: linkedInData.education.length > 0 ? linkedInData.education : undefined,
@@ -164,7 +165,7 @@ export const LinkedInImportModal: React.FC<LinkedInImportModalProps> = ({
 
       // Apply to CV sections
       await applyImportToCV({
-        userId,
+        workspaceId,
         importId,
         sections: applyingSections,
       });

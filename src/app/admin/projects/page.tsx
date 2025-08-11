@@ -29,14 +29,18 @@ export default function ProjectsPage() {
   const [formData, setFormData] = useState<ProjectFormData>(initialFormData);
   const [techInput, setTechInput] = useState('');
 
-  const projects = useQuery(api.cv.getProjects, {});
-  const addProject = useMutation(api.cv.addProject);
+  // Get the first workspace for the user
+  const cvData = useQuery(api.cv.getAllCVData, userId ? {} : 'skip');
+  const workspaceId = cvData?.contactInfo?.workspaceId;
+
+  const projects = useQuery(api.cv.getProjects, workspaceId ? { workspaceId } : 'skip');
+  const createProject = useMutation(api.cv.createProject);
   const updateProject = useMutation(api.cv.updateProject);
   const deleteProject = useMutation(api.cv.deleteProject);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!userId) return;
+    if (!userId || !workspaceId) return;
 
     const projectData = {
       ...formData,
@@ -52,7 +56,10 @@ export default function ProjectsPage() {
           ...projectData,
         });
       } else {
-        await addProject(projectData);
+        await createProject({
+          workspaceId,
+          ...projectData,
+        });
       }
       
       setFormData(initialFormData);

@@ -16,14 +16,18 @@ export default function SkillsPage() {
   const [skillInput, setSkillInput] = useState('');
   const [isEditing, setIsEditing] = useState<Id<'skills'> | null>(null);
 
-  const skills = useQuery(api.cv.getSkills, {});
-  const addSkill = useMutation(api.cv.addSkill);
+  // Get the first workspace for the user
+  const cvData = useQuery(api.cv.getAllCVData, userId ? {} : 'skip');
+  const workspaceId = cvData?.contactInfo?.workspaceId;
+
+  const skills = useQuery(api.cv.getSkills, workspaceId ? { workspaceId } : 'skip');
+  const createSkill = useMutation(api.cv.createSkill);
   const updateSkill = useMutation(api.cv.updateSkill);
   const deleteSkill = useMutation(api.cv.deleteSkill);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!userId || formData.items.length === 0) return;
+    if (!userId || !workspaceId || formData.items.length === 0) return;
 
     try {
       if (isEditing !== null) {
@@ -34,7 +38,8 @@ export default function SkillsPage() {
           order: skills?.length || 0,
         });
       } else {
-        await addSkill({
+        await createSkill({
+          workspaceId,
           category: formData.category,
           items: formData.items,
           order: skills?.length || 0,

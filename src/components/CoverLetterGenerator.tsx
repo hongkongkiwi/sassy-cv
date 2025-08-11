@@ -5,16 +5,17 @@ import { isAIAvailable } from '@/lib/deploy';
 import React, { useState } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
+import { Id } from '../../convex/_generated/dataModel';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 
 interface CoverLetterGeneratorProps {
-  userId: string;
+  workspaceId: Id<"workspaces">;
   onClose: () => void;
 }
 
 export const CoverLetterGenerator: React.FC<CoverLetterGeneratorProps> = ({
-  userId,
+  workspaceId,
   onClose,
 }) => {
   const [jobDescription, setJobDescription] = useState('');
@@ -27,10 +28,10 @@ export const CoverLetterGenerator: React.FC<CoverLetterGeneratorProps> = ({
   const [title, setTitle] = useState('');
 
   // Fetch CV data
-  const contactInfo = useQuery(api.cv.getContactInfo, {}) as any;
-  const experiences = useQuery(api.cv.getExperiences, {}) || [];
-  const skills = useQuery(api.cv.getSkills, {}) || [];
-  const education = useQuery(api.cv.getEducation, {}) || [];
+  const contactInfo = useQuery(api.cv.getContactInfo, { workspaceId }) as any;
+  const experiences = useQuery(api.cv.getExperiences, { workspaceId }) || [];
+  const skills = useQuery(api.cv.getSkills, { workspaceId }) || [];
+  const education = useQuery(api.cv.getEducation, { workspaceId }) || [];
 
   const createCoverLetter = useMutation(api.coverLetters.createCoverLetter);
 
@@ -95,7 +96,7 @@ export const CoverLetterGenerator: React.FC<CoverLetterGeneratorProps> = ({
     setSaving(true);
     try {
       await createCoverLetter({
-        userId,
+        workspaceId,
         title,
         content: generatedContent,
         jobTitle: position || undefined,

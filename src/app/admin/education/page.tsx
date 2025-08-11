@@ -32,14 +32,18 @@ export default function EducationPage() {
   const [isEditing, setIsEditing] = useState<Id<'education'> | null>(null);
   const [formData, setFormData] = useState<EducationFormData>(initialFormData);
 
-  const education = useQuery(api.cv.getEducation, {});
-  const addEducation = useMutation(api.cv.addEducation);
+  // Get the first workspace for the user
+  const cvData = useQuery(api.cv.getAllCVData, userId ? {} : 'skip');
+  const workspaceId = cvData?.contactInfo?.workspaceId;
+
+  const education = useQuery(api.cv.getEducation, workspaceId ? { workspaceId } : 'skip');
+  const createEducation = useMutation(api.cv.createEducation);
   const updateEducation = useMutation(api.cv.updateEducation);
   const deleteEducation = useMutation(api.cv.deleteEducation);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!userId) return;
+    if (!userId || !workspaceId) return;
 
     const educationData = {
       ...formData,
@@ -55,7 +59,10 @@ export default function EducationPage() {
           ...educationData,
         });
       } else {
-        await addEducation(educationData);
+        await createEducation({
+          workspaceId,
+          ...educationData,
+        });
       }
       
       setFormData(initialFormData);

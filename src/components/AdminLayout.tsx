@@ -76,6 +76,12 @@ const navigation = [
     icon: '📝',
     description: 'AI-powered cover letters'
   },
+  { 
+    name: 'Privacy Settings', 
+    href: '/admin/privacy', 
+    icon: '🔒',
+    description: 'Control who can access your CV'
+  },
 ];
 
 export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {

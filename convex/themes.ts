@@ -14,15 +14,29 @@ export const getThemes = query({
 
 // Get user settings
 export const getUserSettings = query({
-  args: { userId: v.string() },
+  args: { workspaceId: v.id("workspaces") },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity?.tokenIdentifier || identity.subject !== args.userId) {
+    if (!identity?.tokenIdentifier) {
       throw new Error("Unauthorized");
     }
+    
+    // Check workspace access
+    const collaboration = await ctx.db
+      .query("collaborators")
+      .withIndex("by_workspace_user", (q: any) => 
+        q.eq("workspaceId", args.workspaceId).eq("userId", identity.subject)
+      )
+      .filter((q: any) => q.eq(q.field("status"), "accepted"))
+      .first();
+    
+    if (!collaboration) {
+      throw new Error("Access denied");
+    }
+    
     return await ctx.db
       .query("userSettings")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .withIndex("by_workspace", (q: any) => q.eq("workspaceId", args.workspaceId))
       .first();
   },
 });
@@ -30,8 +44,9 @@ export const getUserSettings = query({
 // Update user settings
 export const updateUserSettings = mutation({
   args: {
-    userId: v.string(),
-    selectedTheme: v.optional(v.string()),
+    workspaceId: v.id("workspaces"),
+    selectedTheme: v.optional(v.id("themes")),
+    selectedTemplate: v.optional(v.id("templates")),
     analyticsEnabled: v.optional(v.boolean()),
     publicViewEnabled: v.optional(v.boolean()),
     customDomain: v.optional(v.string()),
@@ -43,18 +58,39 @@ export const updateUserSettings = mutation({
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity?.tokenIdentifier || identity.subject !== args.userId) {
+    if (!identity?.tokenIdentifier) {
       throw new Error("Unauthorized");
     }
+    
+    // Check workspace access
+    const collaboration = await ctx.db
+      .query("collaborators")
+      .withIndex("by_workspace_user", (q: any) => 
+        q.eq("workspaceId", args.workspaceId).eq("userId", identity.subject)
+      )
+      .filter((q: any) => q.eq(q.field("status"), "accepted"))
+      .first();
+    
+    if (!collaboration?.permissions.canEdit && collaboration?.role !== "owner") {
+      throw new Error("Insufficient permissions");
+    }
+    
     const existing = await ctx.db
       .query("userSettings")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .withIndex("by_workspace", (q: any) => q.eq("workspaceId", args.workspaceId))
       .first();
 
+    const now = Date.now();
+    const updates = {
+      ...args,
+      updatedBy: identity.subject,
+      updatedAt: now,
+    };
+
     if (existing) {
-      return await ctx.db.patch(existing._id, args);
+      return await ctx.db.patch(existing._id, updates);
     } else {
-      return await ctx.db.insert("userSettings", args);
+      return await ctx.db.insert("userSettings", updates);
     }
   },
 });
@@ -63,78 +99,215 @@ export const updateUserSettings = mutation({
 export const seedDefaultThemes = mutation({
   args: {},
   handler: async (ctx) => {
+    const now = Date.now();
     const themes = [
       {
         name: "modern",
         displayName: "Modern Professional",
         description: "Clean, contemporary design with blue accents",
+        category: "professional",
         colors: {
           primary: "#2563eb",
           secondary: "#7c3aed", 
           accent: "#06b6d4",
           background: "#ffffff",
-          text: "#1f2937",
+          surface: "#f8fafc",
+          text: {
+            primary: "#1f2937",
+            secondary: "#4b5563",
+            muted: "#9ca3af",
+          },
+          border: "#e5e7eb",
         },
-        fonts: {
-          heading: "Inter",
-          body: "Inter",
+        typography: {
+          headings: {
+            family: "Inter",
+            weights: [400, 500, 600, 700],
+          },
+          body: {
+            family: "Inter",
+            weights: [400, 500],
+          },
+          sizes: {
+            xs: "0.75rem",
+            sm: "0.875rem",
+            base: "1rem",
+            lg: "1.125rem",
+            xl: "1.25rem",
+            "2xl": "1.5rem",
+            "3xl": "1.875rem",
+          },
         },
-        layout: "modern",
+        layout: {
+          type: "modern",
+          spacing: {
+            section: "2rem",
+            element: "1rem",
+            container: "1.5rem",
+          },
+          borderRadius: "0.5rem",
+          shadows: true,
+        },
+        isBuiltIn: true,
         isActive: true,
+        createdAt: now,
+        updatedAt: now,
       },
       {
         name: "classic",
         displayName: "Classic Executive",
         description: "Traditional, formal design with elegant typography",
+        category: "professional",
         colors: {
           primary: "#1f2937",
           secondary: "#4b5563",
           accent: "#059669",
           background: "#ffffff",
-          text: "#111827",
+          surface: "#f9fafb",
+          text: {
+            primary: "#111827",
+            secondary: "#374151",
+            muted: "#6b7280",
+          },
+          border: "#d1d5db",
         },
-        fonts: {
-          heading: "Georgia",
-          body: "Georgia",
+        typography: {
+          headings: {
+            family: "Georgia",
+            weights: [400, 700],
+          },
+          body: {
+            family: "Georgia",
+            weights: [400],
+          },
+          sizes: {
+            xs: "0.75rem",
+            sm: "0.875rem",
+            base: "1rem",
+            lg: "1.125rem",
+            xl: "1.25rem",
+            "2xl": "1.5rem",
+            "3xl": "1.875rem",
+          },
         },
-        layout: "classic",
+        layout: {
+          type: "single-column",
+          spacing: {
+            section: "1.5rem",
+            element: "0.75rem",
+            container: "1rem",
+          },
+          borderRadius: "0.25rem",
+          shadows: false,
+        },
+        isBuiltIn: true,
         isActive: true,
+        createdAt: now,
+        updatedAt: now,
       },
       {
         name: "minimal",
         displayName: "Minimal Clean",
         description: "Simple, distraction-free design focusing on content",
+        category: "professional",
         colors: {
           primary: "#374151",
           secondary: "#6b7280",
           accent: "#f59e0b",
           background: "#ffffff",
-          text: "#1f2937",
+          surface: "#ffffff",
+          text: {
+            primary: "#1f2937",
+            secondary: "#374151",
+            muted: "#9ca3af",
+          },
+          border: "#f3f4f6",
         },
-        fonts: {
-          heading: "system-ui",
-          body: "system-ui",
+        typography: {
+          headings: {
+            family: "system-ui",
+            weights: [400, 600],
+          },
+          body: {
+            family: "system-ui",
+            weights: [400],
+          },
+          sizes: {
+            xs: "0.75rem",
+            sm: "0.875rem",
+            base: "1rem",
+            lg: "1.125rem",
+            xl: "1.25rem",
+            "2xl": "1.5rem",
+            "3xl": "1.875rem",
+          },
         },
-        layout: "minimal",
+        layout: {
+          type: "single-column",
+          spacing: {
+            section: "1.25rem",
+            element: "0.5rem",
+            container: "1rem",
+          },
+          borderRadius: "0rem",
+          shadows: false,
+        },
+        isBuiltIn: true,
         isActive: true,
+        createdAt: now,
+        updatedAt: now,
       },
       {
         name: "creative",
         displayName: "Creative Bold",
         description: "Vibrant, modern design for creative professionals",
+        category: "creative",
         colors: {
           primary: "#7c3aed",
           secondary: "#ec4899",
           accent: "#06b6d4",
           background: "#ffffff",
-          text: "#1f2937",
+          surface: "#fef7ff",
+          text: {
+            primary: "#1f2937",
+            secondary: "#4b5563",
+            muted: "#8b5cf6",
+          },
+          border: "#e879f9",
         },
-        fonts: {
-          heading: "Inter",
-          body: "Inter",
+        typography: {
+          headings: {
+            family: "Inter",
+            weights: [600, 700, 800],
+          },
+          body: {
+            family: "Inter",
+            weights: [400, 500],
+          },
+          sizes: {
+            xs: "0.75rem",
+            sm: "0.875rem",
+            base: "1rem",
+            lg: "1.125rem",
+            xl: "1.25rem",
+            "2xl": "1.5rem",
+            "3xl": "1.875rem",
+          },
         },
-        layout: "creative",
+        layout: {
+          type: "two-column",
+          spacing: {
+            section: "2.5rem",
+            element: "1.25rem",
+            container: "2rem",
+          },
+          borderRadius: "0.75rem",
+          shadows: true,
+        },
+        isBuiltIn: true,
         isActive: true,
+        createdAt: now,
+        updatedAt: now,
       },
     ];
 

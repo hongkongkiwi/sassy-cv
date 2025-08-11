@@ -11,7 +11,11 @@ export default function AnalyticsPage() {
   const { userId } = useAuth();
   const [timeRange, setTimeRange] = useState('30');
   
-  const analytics = useQuery(api.analytics.getAnalyticsOverview, userId ? { userId } : 'skip');
+  // Get the first workspace for the user
+  const cvData = useQuery(api.cv.getAllCVData, userId ? {} : 'skip');
+  const workspaceId = cvData?.contactInfo?.workspaceId;
+  
+  const analytics = useQuery(api.analytics.getAnalyticsOverview, workspaceId ? { workspaceId } : 'skip');
 
   if (!userId) {
     return (

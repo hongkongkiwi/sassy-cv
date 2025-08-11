@@ -2,6 +2,8 @@ import type { Metadata } from 'next'
 import { ClerkProvider } from '@clerk/nextjs'
 import { ConvexClientProvider } from '@/providers/ConvexClientProvider'
 import { ThemeProvider } from '@/contexts/ThemeContext'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { env } from '@/env'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -16,22 +18,24 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  const hasClerk = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
+  const hasClerk = Boolean(env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
 
   const app = (
     <html lang="en">
       <body className="antialiased">
-        <ConvexClientProvider>
-          <ThemeProvider>
-            {children}
-          </ThemeProvider>
-        </ConvexClientProvider>
+        <ErrorBoundary>
+          <ConvexClientProvider>
+            <ThemeProvider>
+              {children}
+            </ThemeProvider>
+          </ConvexClientProvider>
+        </ErrorBoundary>
       </body>
     </html>
   );
 
   return hasClerk ? (
-    <ClerkProvider publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}>
+    <ClerkProvider publishableKey={env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}>
       {app}
     </ClerkProvider>
   ) : (

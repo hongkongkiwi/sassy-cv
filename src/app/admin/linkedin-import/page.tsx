@@ -13,12 +13,16 @@ export default function LinkedInImportPage() {
   const { userId } = useAuth();
   const [showImportModal, setShowImportModal] = useState(false);
   
+  // Get the first workspace for the user
+  const cvData = useQuery(api.cv.getAllCVData, userId ? {} : 'skip');
+  const workspaceId = cvData?.contactInfo?.workspaceId;
+
   const importHistory = useQuery(api.linkedinImport.getImportHistory, 
-    userId ? { userId } : 'skip'
+    workspaceId ? { workspaceId } : 'skip'
   ) || [];
   
   const latestImport = useQuery(api.linkedinImport.getLatestImport,
-    userId ? { userId } : 'skip'
+    workspaceId ? { workspaceId } : 'skip'
   );
 
   const formatDate = (timestamp: number) => {
@@ -231,7 +235,7 @@ export default function LinkedInImportPage() {
           <LinkedInImportModal 
             isOpen={showImportModal}
             onClose={() => setShowImportModal(false)}
-            userId={userId}
+            workspaceId={workspaceId!}
           />
         )}
       </div>

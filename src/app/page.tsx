@@ -4,6 +4,7 @@ import React, { useEffect } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { useAuth } from '@clerk/nextjs';
 import Link from 'next/link';
+import { env } from '@/env';
 
 import { api } from '../../convex/_generated/api';
 import { cvData } from '@/data/cv-data';
@@ -13,7 +14,6 @@ import { ExperienceSection } from '@/components/ExperienceSection';
 import { SkillsSection } from '@/components/SkillsSection';
 import { ProjectsSection } from '@/components/ProjectsSection';
 import { EducationSection } from '@/components/EducationSection';
-import { PDFDocument } from '@/components/PDFDocument';
 import { CVData } from '@/types/cv';
 
 export default function Home() {
@@ -24,9 +24,9 @@ export default function Home() {
   // Track page view
   useEffect(() => {
     const trackPageView = async () => {
-      // Determine CV owner id from stored data or fallback to anonymous default owner
-      const cvOwnerId =
-        cvDataFromDB?.contactInfo?.userId || process.env.NEXT_PUBLIC_PUBLIC_USER_ID || 'public-cv-owner';
+      // Get workspace ID from the contact info
+      const workspaceId = cvDataFromDB?.contactInfo?.workspaceId;
+      if (!workspaceId) return; // Cannot track without workspace
       
       // Generate or get visitor ID
       let visitorId = localStorage.getItem('cv-visitor-id');
@@ -45,7 +45,7 @@ export default function Home() {
 
       try {
         await trackEvent({
-          userId: cvOwnerId,
+          workspaceId,
           event: 'view',
           visitorId,
           userAgent: navigator.userAgent,
@@ -58,7 +58,7 @@ export default function Home() {
     };
 
     trackPageView();
-  }, [trackEvent, userId, cvDataFromDB?.contactInfo?.userId]);
+  }, [trackEvent, userId, cvDataFromDB?.contactInfo?.workspaceId]);
 
   // Transform Convex data to match CVData interface
   const transformedCVData: CVData | null = cvDataFromDB ? {
@@ -112,14 +112,18 @@ export default function Home() {
 
   const handleExportPDF = async () => {
     try {
-      const { pdf } = await import('@react-pdf/renderer');
-      const { saveAs } = await import('file-saver');
-      const blob = await pdf(<PDFDocument data={currentCVData} />).toBlob();
+      // Dynamic import for better code splitting
+      const [{ pdf }, { saveAs }, { PDFDocument: PDFDocumentComponent }] = await Promise.all([
+        import('@react-pdf/renderer'),
+        import('file-saver'),
+        import('@/components/PDFDocument')
+      ]);
+      const blob = await pdf(<PDFDocumentComponent data={currentCVData} />).toBlob();
       saveAs(blob, `${currentCVData.contact.name.replace(/\s+/g, '_')}_CV.pdf`);
       
       // Track download event
-      const cvOwnerId =
-        cvDataFromDB?.contactInfo?.userId || process.env.NEXT_PUBLIC_PUBLIC_USER_ID || 'public-cv-owner';
+      const workspaceId = cvDataFromDB?.contactInfo?.workspaceId;
+      if (!workspaceId) return; // Cannot track without workspace
       let visitorId = localStorage.getItem('cv-visitor-id');
       if (!visitorId) {
         visitorId = Math.random().toString(36).substr(2, 9);
@@ -128,7 +132,7 @@ export default function Home() {
       
       try {
         await trackEvent({
-          userId: cvOwnerId,
+          workspaceId,
           event: 'download',
           visitorId,
           userAgent: navigator.userAgent,

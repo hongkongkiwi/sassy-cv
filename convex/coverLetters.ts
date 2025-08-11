@@ -1,17 +1,32 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
-// Get all cover letters for a user
+// Get all cover letters for a workspace
 export const getCoverLetters = query({
-  args: { userId: v.string() },
+  args: { workspaceId: v.id("workspaces") },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity?.tokenIdentifier || identity.subject !== args.userId) {
+    if (!identity?.tokenIdentifier) {
       throw new Error("Unauthorized");
     }
+    
+    // Check workspace access
+    const collaboration = await ctx.db
+      .query("collaborators")
+      .withIndex("by_workspace_user", (q) => 
+        q.eq("workspaceId", args.workspaceId).eq("userId", identity.subject)
+      )
+      .filter((q) => q.eq(q.field("status"), "accepted"))
+      .first();
+    
+    if (!collaboration) {
+      throw new Error("Access denied");
+    }
+    
     return await ctx.db
       .query("coverLetters")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", args.workspaceId))
+      .filter((q) => q.eq(q.field("isActive"), true))
       .order("desc")
       .collect();
   },
@@ -26,9 +41,23 @@ export const getCoverLetter = query({
       throw new Error("Unauthorized");
     }
     const letter = await ctx.db.get(args.id);
-    if (!letter || letter.userId !== identity.subject) {
-      throw new Error("Forbidden");
+    if (!letter) {
+      throw new Error("Cover letter not found");
     }
+    
+    // Check workspace access
+    const collaboration = await ctx.db
+      .query("collaborators")
+      .withIndex("by_workspace_user", (q) => 
+        q.eq("workspaceId", letter.workspaceId).eq("userId", identity.subject)
+      )
+      .filter((q) => q.eq(q.field("status"), "accepted"))
+      .first();
+    
+    if (!collaboration) {
+      throw new Error("Access denied");
+    }
+    
     return letter;
   },
 });
@@ -36,7 +65,7 @@ export const getCoverLetter = query({
 // Create a new cover letter
 export const createCoverLetter = mutation({
   args: {
-    userId: v.string(),
+    workspaceId: v.id("workspaces"),
     title: v.string(),
     content: v.string(),
     jobTitle: v.optional(v.string()),
@@ -45,19 +74,36 @@ export const createCoverLetter = mutation({
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity?.tokenIdentifier || identity.subject !== args.userId) {
+    if (!identity?.tokenIdentifier) {
       throw new Error("Unauthorized");
     }
+    
+    // Check workspace access and edit permissions
+    const collaboration = await ctx.db
+      .query("collaborators")
+      .withIndex("by_workspace_user", (q) => 
+        q.eq("workspaceId", args.workspaceId).eq("userId", identity.subject)
+      )
+      .filter((q) => q.eq(q.field("status"), "accepted"))
+      .first();
+    
+    if (!collaboration?.permissions.canEdit && collaboration?.role !== "owner") {
+      throw new Error("Insufficient permissions");
+    }
+    
     const now = Date.now();
     return await ctx.db.insert("coverLetters", {
-      userId: args.userId,
+      workspaceId: args.workspaceId,
       title: args.title,
       content: args.content,
       jobTitle: args.jobTitle,
       company: args.company,
       isTemplate: args.isTemplate || false,
+      version: 1,
+      createdBy: identity.subject,
       createdAt: now,
       updatedAt: now,
+      isActive: true,
     });
   },
 });
@@ -80,11 +126,22 @@ export const updateCoverLetter = mutation({
     if (!existing) {
       throw new Error("Cover letter not found");
     }
-    if (existing.userId !== identity.subject) {
-      throw new Error("Forbidden");
+    
+    // Check workspace access and edit permissions
+    const collaboration = await ctx.db
+      .query("collaborators")
+      .withIndex("by_workspace_user", (q) => 
+        q.eq("workspaceId", existing.workspaceId).eq("userId", identity.subject)
+      )
+      .filter((q) => q.eq(q.field("status"), "accepted"))
+      .first();
+    
+    if (!collaboration?.permissions.canEdit && collaboration?.role !== "owner") {
+      throw new Error("Insufficient permissions");
     }
 
     const updates: any = {
+      version: existing.version + 1,
       updatedAt: Date.now(),
     };
 
@@ -97,7 +154,7 @@ export const updateCoverLetter = mutation({
   },
 });
 
-// Delete a cover letter
+// Delete a cover letter (soft delete)
 export const deleteCoverLetter = mutation({
   args: { id: v.id("coverLetters") },
   handler: async (ctx, args) => {
@@ -109,10 +166,24 @@ export const deleteCoverLetter = mutation({
     if (!existing) {
       throw new Error("Cover letter not found");
     }
-    if (existing.userId !== identity.subject) {
-      throw new Error("Forbidden");
+    
+    // Check workspace access and edit permissions
+    const collaboration = await ctx.db
+      .query("collaborators")
+      .withIndex("by_workspace_user", (q) => 
+        q.eq("workspaceId", existing.workspaceId).eq("userId", identity.subject)
+      )
+      .filter((q) => q.eq(q.field("status"), "accepted"))
+      .first();
+    
+    if (!collaboration?.permissions.canEdit && collaboration?.role !== "owner") {
+      throw new Error("Insufficient permissions");
     }
-    return await ctx.db.delete(args.id);
+    
+    return await ctx.db.patch(args.id, { 
+      isActive: false,
+      updatedAt: Date.now()
+    });
   },
 });
 
@@ -120,41 +191,74 @@ export const deleteCoverLetter = mutation({
 export const duplicateCoverLetter = mutation({
   args: { id: v.id("coverLetters") },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity?.tokenIdentifier) {
+      throw new Error("Unauthorized");
+    }
     const original = await ctx.db.get(args.id);
     if (!original) {
       throw new Error("Cover letter not found");
     }
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity?.tokenIdentifier || identity.subject !== original.userId) {
-      throw new Error("Unauthorized");
+    
+    // Check workspace access
+    const collaboration = await ctx.db
+      .query("collaborators")
+      .withIndex("by_workspace_user", (q) => 
+        q.eq("workspaceId", original.workspaceId).eq("userId", identity.subject)
+      )
+      .filter((q) => q.eq(q.field("status"), "accepted"))
+      .first();
+    
+    if (!collaboration?.permissions.canEdit && collaboration?.role !== "owner") {
+      throw new Error("Insufficient permissions");
     }
 
     const now = Date.now();
     return await ctx.db.insert("coverLetters", {
-      userId: original.userId,
+      workspaceId: original.workspaceId,
       title: `${original.title} (Copy)`,
       content: original.content,
       jobTitle: original.jobTitle,
       company: original.company,
       isTemplate: false,
+      version: 1,
+      createdBy: identity.subject,
       createdAt: now,
       updatedAt: now,
+      isActive: true,
     });
   },
 });
 
 // Get cover letter templates
 export const getTemplates = query({
-  args: { userId: v.string() },
+  args: { workspaceId: v.id("workspaces") },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity?.tokenIdentifier || identity.subject !== args.userId) {
+    if (!identity?.tokenIdentifier) {
       throw new Error("Unauthorized");
     }
+    
+    // Check workspace access
+    const collaboration = await ctx.db
+      .query("collaborators")
+      .withIndex("by_workspace_user", (q) => 
+        q.eq("workspaceId", args.workspaceId).eq("userId", identity.subject)
+      )
+      .filter((q) => q.eq(q.field("status"), "accepted"))
+      .first();
+    
+    if (!collaboration) {
+      throw new Error("Access denied");
+    }
+    
     return await ctx.db
       .query("coverLetters")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
-      .filter((q) => q.eq(q.field("isTemplate"), true))
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", args.workspaceId))
+      .filter((q) => q.and(
+        q.eq(q.field("isTemplate"), true),
+        q.eq(q.field("isActive"), true)
+      ))
       .order("desc")
       .collect();
   },
@@ -162,12 +266,26 @@ export const getTemplates = query({
 
 // Create default templates
 export const createDefaultTemplates = mutation({
-  args: { userId: v.string() },
+  args: { workspaceId: v.id("workspaces") },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity?.tokenIdentifier || identity.subject !== args.userId) {
+    if (!identity?.tokenIdentifier) {
       throw new Error("Unauthorized");
     }
+    
+    // Check workspace access and edit permissions
+    const collaboration = await ctx.db
+      .query("collaborators")
+      .withIndex("by_workspace_user", (q) => 
+        q.eq("workspaceId", args.workspaceId).eq("userId", identity.subject)
+      )
+      .filter((q) => q.eq(q.field("status"), "accepted"))
+      .first();
+    
+    if (!collaboration?.permissions.canEdit && collaboration?.role !== "owner") {
+      throw new Error("Insufficient permissions");
+    }
+    
     const now = Date.now();
     
     const templates = [
@@ -206,12 +324,15 @@ Best regards,
     const results = [];
     for (const template of templates) {
       const result = await ctx.db.insert("coverLetters", {
-        userId: args.userId,
+        workspaceId: args.workspaceId,
         title: template.title,
         content: template.content,
         isTemplate: true,
+        version: 1,
+        createdBy: identity.subject,
         createdAt: now,
         updatedAt: now,
+        isActive: true,
       });
       results.push(result);
     }

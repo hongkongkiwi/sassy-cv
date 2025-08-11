@@ -1,293 +1,243 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useAuth } from '@clerk/nextjs';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
 import { AdminLayout } from '@/components/AdminLayout';
+import { ThemeSelector } from '@/components/ThemeSelector';
+import { TemplateGallery } from '@/components/TemplateGallery';
 import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { useTheme } from '@/contexts/ThemeContext';
 
 export default function ThemesPage() {
-  const { userId } = useAuth();
-  const { themes, currentTheme, setTheme, isLoading } = useTheme();
-  const [previewTheme, setPreviewTheme] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'themes' | 'templates'>('themes');
+  const [refreshKey, setRefreshKey] = useState(0);
   
-  const seedThemes = useMutation(api.themes.seedDefaultThemes);
-
-  const handleSeedThemes = async () => {
+  // Get user's workspaces to find the first one (for now)
+  const workspaces = useQuery(api.workspaces.getUserWorkspaces, {});
+  const currentWorkspace = workspaces?.[0];
+  
+  // Get current workspace theme
+  const currentWorkspaceTheme = useQuery(
+    api.themesAndTemplates.getWorkspaceTheme,
+    currentWorkspace ? { workspaceId: (currentWorkspace as any)._id } : 'skip'
+  );
+  
+  const initializeThemes = useMutation(api.themesAndTemplates.initializeBuiltInThemes);
+  const initializeTemplates = useMutation(api.themesAndTemplates.initializeBuiltInTemplates);
+  
+  const handleInitializeThemes = async () => {
     try {
-      await seedThemes({});
-      alert('Default themes have been created!');
+      const result = await initializeThemes({});
+      alert(result.message);
+      setRefreshKey(prev => prev + 1);
     } catch (error) {
-      console.error('Failed to seed themes:', error);
+      console.error('Failed to initialize themes:', error);
+      alert('Failed to initialize themes. Please try again.');
     }
   };
-
-  const handlePreviewTheme = (themeId: string) => {
-    setPreviewTheme(themeId);
-    const theme = themes.find(t => t._id === themeId);
-    if (theme) {
-      // Temporarily apply theme for preview
-      const root = document.documentElement;
-      root.style.setProperty('--color-primary', theme.colors.primary);
-      root.style.setProperty('--color-secondary', theme.colors.secondary);
-      root.style.setProperty('--color-accent', theme.colors.accent);
+  
+  const handleInitializeTemplates = async () => {
+    try {
+      const result = await initializeTemplates({});
+      alert(result.message);
+      setRefreshKey(prev => prev + 1);
+    } catch (error) {
+      console.error('Failed to initialize templates:', error);
+      alert('Failed to initialize templates. Please try again.');
     }
   };
-
-  const handleApplyTheme = async (themeId: string) => {
-    await setTheme(themeId);
-    setPreviewTheme(null);
+  
+  const handleThemeChange = () => {
+    setRefreshKey(prev => prev + 1);
+  };
+  
+  const handleTemplateApplied = () => {
+    setRefreshKey(prev => prev + 1);
+    // Optionally switch to themes tab to see the applied theme
+    setActiveTab('themes');
   };
 
-  const handleCancelPreview = () => {
-    setPreviewTheme(null);
-    if (currentTheme) {
-      // Restore current theme
-      const root = document.documentElement;
-      root.style.setProperty('--color-primary', currentTheme.colors.primary);
-      root.style.setProperty('--color-secondary', currentTheme.colors.secondary);
-      root.style.setProperty('--color-accent', currentTheme.colors.accent);
-    }
-  };
-
-  const ThemePreview = ({ theme }: { theme: any }) => {
-    const isSelected = currentTheme?._id === theme._id;
-    const isPreviewing = previewTheme === theme._id;
-
-    return (
-      <Card 
-        hover 
-        className={`cursor-pointer transition-all duration-200 ${
-          isSelected ? 'ring-2 ring-blue-500 bg-blue-50' : ''
-        } ${isPreviewing ? 'ring-2 ring-purple-500 bg-purple-50' : ''}`}
-      >
-        <div className="space-y-4">
-          {/* Theme Preview */}
-          <div className="h-32 rounded-lg overflow-hidden border border-gray-200">
-            <div 
-              className="h-full flex flex-col"
-              style={{ backgroundColor: theme.colors.background }}
-            >
-              {/* Header */}
-              <div 
-                className="h-8 flex items-center px-3"
-                style={{ backgroundColor: theme.colors.primary }}
-              >
-                <div className="w-16 h-1.5 bg-white bg-opacity-60 rounded"></div>
-              </div>
-              
-              {/* Content */}
-              <div className="flex-1 p-3 space-y-2">
-                <div 
-                  className="h-3 w-20 rounded"
-                  style={{ backgroundColor: theme.colors.text, opacity: 0.8 }}
-                ></div>
-                <div 
-                  className="h-2 w-full rounded"
-                  style={{ backgroundColor: theme.colors.text, opacity: 0.3 }}
-                ></div>
-                <div 
-                  className="h-2 w-3/4 rounded"
-                  style={{ backgroundColor: theme.colors.text, opacity: 0.3 }}
-                ></div>
-                <div className="flex gap-1 pt-1">
-                  <div 
-                    className="h-4 w-8 rounded text-xs flex items-center justify-center text-white"
-                    style={{ backgroundColor: theme.colors.accent }}
-                  ></div>
-                  <div 
-                    className="h-4 w-8 rounded"
-                    style={{ backgroundColor: theme.colors.secondary, opacity: 0.3 }}
-                  ></div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Theme Info */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="font-semibold text-gray-900">{theme.displayName}</h3>
-              {isSelected && (
-                <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-                  Current
-                </span>
-              )}
-              {isPreviewing && (
-                <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded-full">
-                  Preview
-                </span>
-              )}
-            </div>
-            <p className="text-sm text-gray-600 mb-3">{theme.description}</p>
-            
-            {/* Color Palette */}
-            <div className="flex gap-2 mb-3">
-              <div 
-                className="w-4 h-4 rounded border border-gray-300"
-                style={{ backgroundColor: theme.colors.primary }}
-                title="Primary"
-              />
-              <div 
-                className="w-4 h-4 rounded border border-gray-300"
-                style={{ backgroundColor: theme.colors.secondary }}
-                title="Secondary"
-              />
-              <div 
-                className="w-4 h-4 rounded border border-gray-300"
-                style={{ backgroundColor: theme.colors.accent }}
-                title="Accent"
-              />
-            </div>
-
-            {/* Actions */}
-            <div className="flex gap-2">
-              {!isSelected && !isPreviewing && (
-                <>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => handlePreviewTheme(theme._id)}
-                  >
-                    Preview
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="primary"
-                    onClick={() => handleApplyTheme(theme._id)}
-                  >
-                    Apply
-                  </Button>
-                </>
-              )}
-              
-              {isPreviewing && (
-                <>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={handleCancelPreview}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="primary"
-                    onClick={() => handleApplyTheme(theme._id)}
-                  >
-                    Apply
-                  </Button>
-                </>
-              )}
-              
-              {isSelected && (
-                <Button size="sm" variant="success" disabled>
-                  Applied
-                </Button>
-              )}
-            </div>
-          </div>
-        </div>
-      </Card>
-    );
-  };
-
-  if (!userId) {
+  
+  if (!workspaces) {
     return (
       <AdminLayout>
-        <div className="text-center py-12">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Theme Customization</h1>
-          <p className="text-gray-600">Please sign in to customize themes.</p>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading themes...</p>
+          </div>
         </div>
       </AdminLayout>
     );
   }
-
+  
+  if (!currentWorkspace) {
+    return (
+      <AdminLayout>
+        <div className="text-center py-12">
+          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 text-2xl font-bold mx-auto mb-4">
+            🎨
+          </div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">No Workspace Found</h2>
+          <p className="text-gray-600 mb-6">
+            You need to create a workspace first to manage themes and templates.
+          </p>
+          <button className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+            Create Workspace
+          </button>
+        </div>
+      </AdminLayout>
+    );
+  }
+  
   return (
     <AdminLayout>
       <div className="space-y-8">
         {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Theme Customization</h1>
-          <p className="text-gray-600 mt-2">
-            Choose a professional theme that reflects your personal brand
-          </p>
-        </div>
-
-        {/* Preview Notice */}
-        {previewTheme && (
-          <Card className="bg-purple-50 border-purple-200">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="text-2xl">👁️</div>
-                <div>
-                  <h3 className="font-medium text-purple-900">Theme Preview Active</h3>
-                  <p className="text-sm text-purple-700">
-                    You&#39;re previewing a theme. Apply it to make it permanent or cancel to revert.
-                  </p>
-                </div>
-              </div>
-              <Button variant="secondary" size="sm" onClick={handleCancelPreview}>
-                Cancel Preview
-              </Button>
-            </div>
-          </Card>
-        )}
-
-        {isLoading ? (
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading themes...</p>
-          </div>
-        ) : themes.length === 0 ? (
-          <Card className="text-center">
-            <div className="text-6xl mb-4">🎨</div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">No Themes Available</h3>
-            <p className="text-gray-600 mb-6">
-              It looks like the default themes haven&#39;t been created yet.
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Themes & Templates</h1>
+            <p className="text-gray-600 mt-1">
+              Customize the look and structure of your CV: {currentWorkspace.name}
             </p>
-            <Button onClick={handleSeedThemes} variant="primary">
-              Create Default Themes
-            </Button>
-          </Card>
-        ) : (
-          <>
-            {/* Themes Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {themes.map((theme) => (
-                <ThemePreview key={theme._id} theme={theme} />
-              ))}
-            </div>
-
-            {/* Tips */}
-            <Card>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">🎨 Theme Tips</h3>
-              <div className="grid md:grid-cols-2 gap-6">
-                <div>
-                  <h4 className="font-medium text-gray-900 mb-2">Choosing the Right Theme</h4>
-                  <ul className="text-sm text-gray-600 space-y-1">
-                    <li>• <strong>Modern:</strong> Great for tech and startup roles</li>
-                    <li>• <strong>Classic:</strong> Perfect for corporate and executive positions</li>
-                    <li>• <strong>Minimal:</strong> Ideal for any industry, content-focused</li>
-                    <li>• <strong>Creative:</strong> Best for design and creative roles</li>
-                  </ul>
-                </div>
-                <div>
-                  <h4 className="font-medium text-gray-900 mb-2">Theme Impact</h4>
-                  <ul className="text-sm text-gray-600 space-y-1">
-                    <li>• Themes apply to both web and PDF versions</li>
-                    <li>• Colors remain consistent across all platforms</li>
-                    <li>• Preview before applying to see changes</li>
-                    <li>• Your current theme is saved automatically</li>
-                  </ul>
-                </div>
+          </div>
+          
+          <div className="flex gap-2">
+            <button
+              onClick={handleInitializeThemes}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm flex items-center gap-2"
+            >
+              <span>🎨</span>
+              Init Themes
+            </button>
+            <button
+              onClick={handleInitializeTemplates}
+              className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors text-sm flex items-center gap-2"
+            >
+              <span>📋</span>
+              Init Templates
+            </button>
+          </div>
+        </div>
+        
+        {/* Current Theme Status */}
+        {currentWorkspaceTheme && (
+          <Card className="p-6">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg flex items-center justify-center text-white font-bold">
+                🎨
               </div>
-            </Card>
-          </>
+              <div className="flex-1">
+                <h3 className="font-semibold text-gray-900">
+                  Current Theme: {currentWorkspaceTheme.theme?.displayName || 'Default'}
+                </h3>
+                <p className="text-gray-600 text-sm">
+                  {currentWorkspaceTheme.theme?.description || 'No theme selected'}
+                </p>
+              </div>
+              {currentWorkspaceTheme.template && (
+                <div className="text-right">
+                  <div className="text-sm font-medium text-gray-900">
+                    Template: {currentWorkspaceTheme.template.displayName}
+                  </div>
+                  <div className="text-xs text-gray-600">
+                    {currentWorkspaceTheme.template.category}
+                  </div>
+                </div>
+              )}
+            </div>
+          </Card>
         )}
+        
+        {/* Tab Navigation */}
+        <div className="border-b border-gray-200">
+          <nav className="flex space-x-8">
+            <button
+              onClick={() => setActiveTab('themes')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === 'themes'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                <span>🎨</span>
+                Themes
+              </span>
+            </button>
+            <button
+              onClick={() => setActiveTab('templates')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === 'templates'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                <span>📋</span>
+                Templates
+              </span>
+            </button>
+          </nav>
+        </div>
+        
+        {/* Tab Content */}
+        <div className="min-h-[600px]">
+          {activeTab === 'themes' && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900 mb-2">Choose Your Theme</h2>
+                <p className="text-gray-600 text-sm mb-6">
+                  Select a visual theme to customize colors, typography, and layout of your CV.
+                </p>
+              </div>
+              
+              <ThemeSelector
+                key={refreshKey}
+                workspaceId={(currentWorkspace as any)._id}
+                currentThemeId={currentWorkspaceTheme?.theme?._id}
+                onThemeChange={handleThemeChange}
+              />
+            </div>
+          )}
+          
+          {activeTab === 'templates' && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900 mb-2">CV Templates</h2>
+                <p className="text-gray-600 text-sm mb-6">
+                  Choose from professionally designed templates tailored for different industries and experience levels.
+                  Templates include both structure and sample content to get you started quickly.
+                </p>
+              </div>
+              
+              <TemplateGallery
+                key={refreshKey}
+                workspaceId={(currentWorkspace as any)._id}
+                onTemplateApplied={handleTemplateApplied}
+              />
+            </div>
+          )}
+        </div>
+        
+        {/* Help Text */}
+        <Card className="p-6 bg-blue-50 border-blue-200">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600 text-sm font-bold flex-shrink-0 mt-0.5">
+              💡
+            </div>
+            <div>
+              <h3 className="font-semibold text-blue-900 mb-2">Tips for Themes & Templates</h3>
+              <div className="space-y-1 text-sm text-blue-800">
+                <p>• <strong>Themes</strong> control the visual appearance (colors, fonts, layout) of your CV</p>
+                <p>• <strong>Templates</strong> provide complete CV structures with sample content for your industry</p>
+                <p>• You can apply a template first for structure, then customize the theme for visual style</p>
+                <p>• All changes are automatically saved and immediately reflected in your public CV</p>
+                <p>• Custom themes and templates can be created for advanced users</p>
+              </div>
+            </div>
+          </div>
+        </Card>
       </div>
     </AdminLayout>
   );

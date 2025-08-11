@@ -1,6 +1,10 @@
 import { NextRequest } from 'next/server';
 import DOMPurify from 'isomorphic-dompurify';
+import { ConvexHttpClient } from 'convex/browser';
+import { api } from '../../convex/_generated/api';
+import { env } from '@/env';
 
+// Legacy in-memory rate limiting (fallback)
 interface RateLimitStore {
   [key: string]: {
     count: number;
@@ -14,27 +18,60 @@ export interface RateLimitOptions {
   windowMs?: number;
   maxRequests?: number;
   identifier?: (req: NextRequest) => string | Promise<string>;
+  endpoint?: string;
+  usePersistent?: boolean;
 }
+
+// Get Convex client for rate limiting
+const getConvexClient = () => {
+  if (!env.NEXT_PUBLIC_CONVEX_URL) {
+    return null;
+  }
+  return new ConvexHttpClient(env.NEXT_PUBLIC_CONVEX_URL);
+};
 
 export function rateLimit(options: RateLimitOptions = {}) {
   const {
     windowMs = 60000, // 1 minute default
     maxRequests = 10,
     identifier = (req) => req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown',
+    endpoint = 'default',
+    usePersistent = true,
   } = options;
 
-  return async (req: NextRequest): Promise<{ success: boolean; limit?: number; remaining?: number; reset?: number }> => {
+  return async (req: NextRequest): Promise<{ success: boolean; limit?: number; remaining?: number; reset?: number; retryAfter?: number }> => {
     const key = await Promise.resolve(identifier(req));
-    const now = Date.now();
     
-    if (!rateLimitStore[key] || rateLimitStore[key].resetTime < now) {
-      rateLimitStore[key] = {
+    // Try to use persistent rate limiting first
+    if (usePersistent) {
+      const client = getConvexClient();
+      if (client) {
+        try {
+          const result = await client.mutation(api.rateLimiting.checkRateLimit, {
+            identifier: key,
+            endpoint,
+            windowMs,
+            maxRequests,
+          });
+          return result;
+        } catch (error) {
+          console.warn('Failed to use persistent rate limiting, falling back to in-memory:', error);
+        }
+      }
+    }
+    
+    // Fallback to in-memory rate limiting
+    const now = Date.now();
+    const storeKey = `${key}:${endpoint}`;
+    
+    if (!rateLimitStore[storeKey] || rateLimitStore[storeKey].resetTime < now) {
+      rateLimitStore[storeKey] = {
         count: 0,
         resetTime: now + windowMs,
       };
     }
     
-    const limit = rateLimitStore[key];
+    const limit = rateLimitStore[storeKey];
     
     if (limit.count >= maxRequests) {
       return {
@@ -42,6 +79,7 @@ export function rateLimit(options: RateLimitOptions = {}) {
         limit: maxRequests,
         remaining: 0,
         reset: limit.resetTime,
+        retryAfter: Math.ceil((limit.resetTime - now) / 1000), // seconds until reset
       };
     }
     
